@@ -1,0 +1,1876 @@
+---
+title: "Hybrids.ASE.Final"
+author: "Lingyu Wang, Wray Lab, Duke University"
+date: "May 3, 2019"
+output: html_document
+---
+
+# 0. Install required libraries
+```{r}
+## If following R packages are not installed in your R environment, please un-comment these lines and install the libraries. 
+
+## For R version 3.4 or lower:
+# source("https://bioconductor.org/biocLite.R")
+# biocLite()
+# biocLite("DESeq2")
+# biocLite("limma")
+# biocLite("vsn")
+# biocLite("genefilter")
+# 
+## For R version 3.5 or greater, install Bioconductor packages using BiocManager:
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install()
+# BiocManager::install(c("DESeq2", "limma", "vsn", "genefilter"))
+
+
+# install.packages("ggplot2")
+# install.packages("reshape2")
+# install.packages("dplyr")
+# install.packages("ggalluvial")
+# install.packages("pheatmap")
+# install.packages("ggpubr")
+
+```
+
+
+# 1. Prepare count table
+```{r}
+# To reproduce the results:
+# 1. download the Rmd file and the rawdata folder with all data files in the folder.
+# 2. in R, set working dirctory as the folder where the Rmd file and raw data are saved. 
+# 3. after running the Rmd file, an output folder will be generated and all the results will be saved in the output folder.
+# 4. to repeart, delete the output folder and run the Rmd file again. 
+# 5. the entire process takes hours to finish. 
+
+getwd() 
+list.files() # Make sure you see rawdata folder after running this command. 
+
+# Load expression data for He Ht and Hy; Blastula, Gastrula and Larva stage.
+bsm.expr <- read.table("./rawdata/my_third_HyLiTE.expression.b.txt", header = T, sep = "\t", row.names = 1, as.is = T)
+gsm.expr <- read.table("./rawdata/my_third_HyLiTE.expression.g.txt", header = T, sep = "\t", row.names = 1, as.is = T)
+lsm.expr <- read.table("./rawdata/my_third_HyLiTE.expression.l.txt", header = T, sep = "\t", row.names = 1, as.is = T)
+
+colnames(bsm.expr) <- c("He1.B","He2.B","He3.B","Ht1.B", "Ht2.B", "Ht3.B", "Hy1.B", "Hy2.B", "Hy3.B")
+colnames(gsm.expr) <- c("He1.G","He2.G","He3.G","Ht1.G", "Ht2.G", "Ht3.G", "Hy1.G", "Hy2.G", "Hy3.G")
+colnames(lsm.expr) <- c("He1.L","He2.L","He3.L","Ht1.L", "Ht2.L", "Ht3.L", "Hy1.L", "Hy2.L", "Hy3.L")
+
+# Expression data for allels, from the final run using all data to assign. 
+## Blastual Stage
+tmp1.df <- read.table("./rawdata/hylite.bsm.all3.hy.sample1.read.summary.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+tmp2.df <- read.table("./rawdata/hylite.bsm.all3.hy.sample2.read.summary.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+tmp3.df <- read.table("./rawdata/hylite.bsm.all3.hy.sample3.read.summary.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+tmp4.df <- read.table("./rawdata/hylite.bsm.all3.expression.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+
+bsm.expr$Ae1.B <- tmp1.df$he + tmp1.df$he.N
+bsm.expr$Ae2.B <- tmp2.df$he + tmp2.df$he.N
+bsm.expr$Ae3.B <- tmp3.df$he + tmp3.df$he.N
+bsm.expr$At1.B <- tmp1.df$ht + tmp1.df$ht.N
+bsm.expr$At2.B <- tmp2.df$ht + tmp2.df$ht.N
+bsm.expr$At3.B <- tmp3.df$ht + tmp3.df$ht.N
+bsm.expr[,c("Hy1.B", "Hy2.B", "Hy3.B")] <- tmp4.df[,c("hy.sample1", "hy.sample2", "hy.sample3")]
+
+## Gastrula stage
+tmp1.df <- read.table("./rawdata/hylite.gsm.all3.hy.sample1.read.summary.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+tmp2.df <- read.table("./rawdata/hylite.gsm.all3.hy.sample2.read.summary.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+tmp3.df <- read.table("./rawdata/hylite.gsm.all3.hy.sample3.read.summary.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+tmp4.df <- read.table("./rawdata/hylite.gsm.all3.expression.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+
+gsm.expr$Ae1.G <- tmp1.df$he + tmp1.df$he.N
+gsm.expr$Ae2.G <- tmp2.df$he + tmp2.df$he.N
+gsm.expr$Ae3.G <- tmp3.df$he + tmp3.df$he.N
+gsm.expr$At1.G <- tmp1.df$ht + tmp1.df$ht.N
+gsm.expr$At2.G <- tmp2.df$ht + tmp2.df$ht.N
+gsm.expr$At3.G <- tmp3.df$ht + tmp3.df$ht.N
+gsm.expr[,c("Hy1.G", "Hy2.G", "Hy3.G")] <- tmp4.df[,c("hy.sample1", "hy.sample2", "hy.sample3")]
+
+## Larva stage
+tmp1.df <- read.table("./rawdata/hylite.lsm.all3.hy.sample1.read.summary.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+tmp2.df <- read.table("./rawdata/hylite.lsm.all3.hy.sample2.read.summary.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+tmp3.df <- read.table("./rawdata/hylite.lsm.all3.hy.sample3.read.summary.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+tmp4.df <- read.table("./rawdata/hylite.lsm.all3.expression.txt", header=TRUE, sep="\t", row.names=1, as.is=TRUE)
+
+lsm.expr$Ae1.L <- tmp1.df$he + tmp1.df$he.N
+lsm.expr$Ae2.L <- tmp2.df$he + tmp2.df$he.N
+lsm.expr$Ae3.L <- tmp3.df$he + tmp3.df$he.N
+lsm.expr$At1.L <- tmp1.df$ht + tmp1.df$ht.N
+lsm.expr$At2.L <- tmp2.df$ht + tmp2.df$ht.N
+lsm.expr$At3.L <- tmp3.df$ht + tmp3.df$ht.N
+lsm.expr[,c("Hy1.L", "Hy2.L", "Hy3.L")] <- tmp4.df[,c("hy.sample1", "hy.sample2", "hy.sample3")]
+
+
+dir.create("./output")
+all.expr <- cbind(bsm.expr, gsm.expr, lsm.expr)
+all.expr$He3.B <- NULL 
+
+library(stringr);library(dplyr)
+
+test <- bsm.expr[,]
+test$id <- rownames(test)
+test[,c("T.ID","SPU")] <- str_split_fixed(test$id,"\\|",2)
+
+spu.ids <- test$SPU
+spu.ids <- sort(unique(spu.ids))
+spu.ids <- spu.ids[1:(length(spu.ids)-1)]
+length(spu.ids)
+
+test[test$SPU == c("UNKNOWN"),c("SPU")] <- test[test$SPU == c("UNKNOWN"),c("T.ID")]
+dim(test) # 11690 SPU ids, 18175 total ids
+test$id <- NULL
+test$T.ID <- NULL
+
+test2 <- test %>% group_by(SPU) %>% summarise_all(funs(sum))
+test3 <- test2[test2$SPU %in% spu.ids,]
+dim(test2);dim(test3) # 15839 IDs after combining SPU ids. 
+
+## combine SPU ids
+all.expr$id <- rownames(all.expr)
+all.expr[,c("T.ID","SPU")] <- str_split_fixed(all.expr$id,"\\|",2)
+all.expr[all.expr$SPU == c("UNKNOWN"),c("SPU")] <- all.expr[all.expr$SPU == c("UNKNOWN"),c("T.ID")]
+write.csv(all.expr, file = "./output/data.raw.all.expr.csv")
+
+all.expr.uniq <- all.expr
+all.expr.uniq$id <- NULL; all.expr.uniq$T.ID <- NULL
+
+all.expr.uniq <- all.expr.uniq %>% group_by(SPU) %>% summarise_all(funs(sum))
+all.expr.spu <- all.expr.uniq[all.expr.uniq$SPU %in% spu.ids,]
+dim(all.expr.uniq);dim(all.expr.spu) # 15839 IDs after combining SPU ids. 
+write.csv(all.expr.uniq,"./output/data.all.expr.uniq.csv")
+write.csv(all.expr.spu,"./output/data.all.expr.spu.csv")
+
+## Use all.expr.spu for the rest of the analysis
+## If other genes need to be combined, do it here
+
+getwd()
+```
+# 2. Assignment rate
+```{r}
+library(ggplot2)
+ase.df <- all.expr.spu
+
+ase.df$B.perc <- ((ase.df$Ae1.B+ase.df$At1.B)/ase.df$Hy1.B +                  
+                  (ase.df$Ae2.B+ase.df$At2.B)/ase.df$Hy2.B + 
+                  (ase.df$Ae3.B+ase.df$At3.B)/ase.df$Hy3.B)/3
+ase.df$Hy.B.mean <- rowMeans(ase.df[,c("Hy1.B","Hy2.B","Hy3.B")])
+ase.df$log.Hy.B.m <- log2(ase.df$Hy.B.mean +1)
+
+ase.df$G.perc <- ((ase.df$Ae1.G+ase.df$At1.G)/ase.df$Hy1.G +                  
+                  (ase.df$Ae2.G+ase.df$At2.G)/ase.df$Hy2.G + 
+                  (ase.df$Ae3.G+ase.df$At3.G)/ase.df$Hy3.G)/3
+ase.df$Hy.G.mean <- rowMeans(ase.df[,c("Hy1.G","Hy2.G","Hy3.G")])
+ase.df$log.Hy.G.m <- log2(ase.df$Hy.G.mean +1)
+
+ase.df$L.perc <- ((ase.df$Ae1.L+ase.df$At1.L)/ase.df$Hy1.L +                  
+                  (ase.df$Ae2.L+ase.df$At2.L)/ase.df$Hy2.L + 
+                  (ase.df$Ae3.L+ase.df$At3.L)/ase.df$Hy3.L)/3
+ase.df$Hy.L.mean <- rowMeans(ase.df[,c("Hy1.L","Hy2.L","Hy3.L")])
+ase.df$log.Hy.L.m <- log2(ase.df$Hy.L.mean +1)
+
+b.perc <- data.frame("Proportion"=ase.df$B.perc, "stage"="Blastula", "SPU"=ase.df$SPU)
+g.perc <- data.frame("Proportion"=ase.df$G.perc, "stage"="Gastrula", "SPU"=ase.df$SPU)
+l.perc <- data.frame("Proportion"=ase.df$L.perc, "stage"="Larva", "SPU"=ase.df$SPU)
+assi.rate.long <- rbind(b.perc, g.perc, l.perc)
+
+## One gene is abnormal. Drop it from the dataset. 
+abnormal.df <- assi.rate.long[assi.rate.long$Proportion > 1,]
+abnormal.df <- subset(assi.rate.long, Proportion > 1, select=c(Proportion, stage, SPU))
+abnormal.spu <- droplevels(unique(abnormal.df$SPU))
+ase.df <- droplevels(ase.df[!ase.df$SPU %in% abnormal.spu,])
+
+## redo the plot:
+b.perc <- data.frame("Proportion"=ase.df$B.perc, "stage"="Blastula", "SPU"=ase.df$SPU)
+g.perc <- data.frame("Proportion"=ase.df$G.perc, "stage"="Gastrula", "SPU"=ase.df$SPU)
+l.perc <- data.frame("Proportion"=ase.df$L.perc, "stage"="Larva", "SPU"=ase.df$SPU)
+assi.rate.long <- rbind(b.perc, g.perc, l.perc)
+write.csv(assi.rate.long, "./output/AssimentRateLong.csv")
+table(b.perc$Proportion>0.5) #8903 true, 11689 genes. 
+table(g.perc$Proportion>0.5) #9389 true, 11689 genes. 
+table(l.perc$Proportion>0.5) #8985 true, 11689 genes. 
+
+p.proportion.1 <- ggplot(assi.rate.long, aes(Proportion, color = stage)) + stat_density(position="identity",geom="line",show.legend = T, adjust = 0.5, size=1)+ theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "Density") + ggtitle("Propotion of reads that are allele specific")
+
+ggsave(filename="./output/AsignmentRatio.pdf", plot=p.proportion.1, width=8, height=6, units="in")
+
+### Most genes that have low proportion of read assigned are genes with low expression. 
+p.prop.vs.expr.b <- ggplot(ase.df, aes(x=log.Hy.B.m, y=B.perc)) + geom_point(aes(alpha = 0.2)) 
+ggsave(filename="./output/Assi.Prop.vs.Expr.B.pdf", plot=p.prop.vs.expr.b, width=8, height=6, units="in")
+
+p.prop.vs.expr.g <- ggplot(ase.df, aes(x=log.Hy.G.m, y=G.perc)) + geom_point(aes(alpha = 0.2)) 
+ggsave(filename="./output/Assi.Prop.vs.Expr.G.pdf", plot=p.prop.vs.expr.g, width=8, height=6, units="in")
+
+p.prop.vs.expr.l <- ggplot(ase.df, aes(x=log.Hy.L.m, y=L.perc)) + geom_point(aes(alpha = 0.2)) 
+ggsave(filename="./output/Assi.Prop.vs.Expr.L.pdf", plot=p.prop.vs.expr.l, width=8, height=6, units="in")
+
+b5.df <- ase.df[ase.df$B.perc<0.05,c("B.perc","Hy.B.mean","log.Hy.B.m")]
+hist(b5.df$log.Hy.B.m, breaks = 30)
+
+getwd()
+```
+# 3. Allelic ratio
+```{r warning=FALSE}
+ase.df$AR.B <- (ase.df$Ae1.B/(ase.df$Ae1.B+ase.df$At1.B) + 
+                ase.df$Ae2.B/(ase.df$Ae2.B+ase.df$At2.B) + 
+                ase.df$Ae2.B/(ase.df$Ae2.B+ase.df$At2.B))/3
+
+ase.df$AR.G <- (ase.df$Ae1.G/(ase.df$Ae1.G+ase.df$At1.G) + 
+                ase.df$Ae2.G/(ase.df$Ae2.G+ase.df$At2.G) + 
+                ase.df$Ae2.G/(ase.df$Ae2.G+ase.df$At2.G))/3
+
+ase.df$AR.L <- (ase.df$Ae1.L/(ase.df$Ae1.L+ase.df$At1.L) + 
+                ase.df$Ae2.L/(ase.df$Ae2.L+ase.df$At2.L) + 
+                ase.df$Ae2.L/(ase.df$Ae2.L+ase.df$At2.L))/3
+
+ar.b <- data.frame("AllelicRatio"=ase.df$AR.B, "stage"="Blastula", "SPU"=ase.df$SPU)
+ar.g <- data.frame("AllelicRatio"=ase.df$AR.G, "stage"="Gastrula", "SPU"=ase.df$SPU)
+ar.l <- data.frame("AllelicRatio"=ase.df$AR.L, "stage"="Larva", "SPU"=ase.df$SPU)
+ar.bgl.long <- rbind(ar.b, ar.g, ar.l)
+write.csv(ar.bgl.long, "./output/AllelicRatioLong.csv")
+
+
+p.AR <- ggplot(ar.bgl.long, aes(AllelicRatio, color = stage)) + stat_density(position="identity",geom="line", show.legend = T, adjust = 0.5, size=1) + ggtitle("Allelic Ratio Distribution across stage") + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "Density", x = "Allelic Ratio") + geom_vline(xintercept=0.5, linetype = "dashed", alpha = 0.3)
+
+ggsave(filename="./output/AllelicRatio.pdf", plot=p.AR, width=8, height=6, units="in")
+
+getwd()
+```
+# 4. gene annotation
+```{r}
+write.csv(ase.df,"./output/data.ase.df.csv")
+ase.df <- read.csv("./output/data.ase.df.csv", header = T, stringsAsFactors = F)
+
+# Load list of GRN genes
+redun.id.GRN <- read.csv("./rawdata/GRNgenes-redundant.csv", stringsAsFactors=FALSE)
+id.GRN <- redun.id.GRN[!duplicated(redun.id.GRN$GENE),]
+sum(id.GRN$SPU %in% ase.df$SPU) # 81 GRN genes, 9 duplicates
+ase.df$GRN <- ifelse(ase.df$SPU %in% id.GRN$SPU, "GRN", "no")
+
+# Load annotations
+sp.anno <- read.csv("./rawdata/sp.anno.csv", row.names = 1, stringsAsFactors=FALSE)
+colnames(sp.anno)[21] <- "SPU"
+sp.anno <- sp.anno[!duplicated(sp.anno$SPU),]
+ase.anno.df <- data.frame(left_join(ase.df, sp.anno, by="SPU"))
+
+cols <- c("He1.B", "He2.B", "Ht1.B", "Ht2.B", "Ht3.B", "Hy1.B", "Hy2.B", "Hy3.B", "Ae1.B", "Ae2.B", "Ae3.B", "At1.B", "At2.B", "At3.B", "He1.G", "He2.G", "He3.G", "Ht1.G", "Ht2.G", "Ht3.G", "Hy1.G", "Hy2.G", "Hy3.G", "Ae1.G", "Ae2.G", "Ae3.G", "At1.G", "At2.G", "At3.G", "He1.L", "He2.L", "He3.L", "Ht1.L", "Ht2.L", "Ht3.L", "Hy1.L", "Hy2.L", "Hy3.L", "Ae1.L", "Ae2.L", "Ae3.L", "At1.L", "At2.L", "At3.L", "SPU", "name", "fullname", "B.perc", "GRN", "WHL", "cluster", "classl1", "classl2", "classl3", "Hy.B.mean", "log.Hy.B.m", "G.perc", "Hy.G.mean", "log.Hy.G.m", "L.perc", "Hy.L.mean", "log.Hy.L.m", "AR.B", "AR.G", "AR.L")
+ase.anno.df <- ase.anno.df[,cols]
+rownames(ase.anno.df) <- ase.anno.df$SPU
+
+# Correct the annotation of certain gene
+ase.anno.df[ase.anno.df$SPU == "SPU_012238", 46] <- "Hh"
+ase.anno.df[ase.anno.df$SPU == "SPU_018811", 46] <- "Sm50"
+ase.anno.df[ase.anno.df$SPU == "SPU_027215", 46] <- "Hhex"
+ase.anno.df[ase.anno.df$SPU == "SPU_022038", 46] <- "Capk"
+ase.anno.df[ase.anno.df$SPU == "SPU_025302", 46] <- "Alx1"
+ase.anno.df[ase.anno.df$SPU == "SPU_014539", 46] <- "Pax2"
+
+write.csv(ase.anno.df, "./output/data.ase.anno.df.csv")
+
+data.init <- read.csv("./output/data.ase.anno.df.csv", header = T, row.names = 1, stringsAsFactors=FALSE)
+coldata.0 <- read.csv("./rawdata/target1.csv",row.names=1)
+
+## Levels of the factor
+coldata.0$Type <- factor(coldata.0$Type, levels = coldata.0$Type[!duplicated(coldata.0$Type)])
+coldata.0$Type
+coldata.0$Geno <- factor(coldata.0$Geno, levels = coldata.0$Geno[!duplicated(coldata.0$Geno)])
+coldata.0$Geno
+coldata.0$Origin <- factor(coldata.0$Origin, levels = coldata.0$Origin[!duplicated(coldata.0$Origin)])
+coldata.0$Origin
+coldata.0$Replicate <- factor(coldata.0$Replicate)
+
+## the columns of the count matrix and the rows of the column data should be in the same order. All counts values (first 44 columns) are kept in cts.0.
+cts.0 <- as.matrix(data.init[,1:44])
+all(rownames(coldata.0) == colnames(cts.0))
+all(rownames(cts.0) == rownames(data.init))
+
+data.init$ID <- data.init$SPU 
+geneinfo.0 <- data.init[,45:66]
+
+```
+# 5. PCA Analysis
+```{r}
+library(DESeq2)
+dds.0 <- DESeqDataSetFromMatrix(countData = cts.0,
+                                colData = coldata.0,
+                                design = ~ Type)
+mcols(dds.0) <- DataFrame(mcols(dds.0),geneinfo.0)
+dds.0 <- DESeq(dds.0)
+resultsNames(dds.0)
+
+vsd.dds.0 <- vst(dds.0, blind=FALSE)
+PCA.dds.0 <- prcomp(t(assay(vsd.dds.0)), scale = F)
+percentVar.dds.0 <- round(100*PCA.dds.0$sdev^2/sum(PCA.dds.0$sdev^2),1)
+dataGG.dds.0 = data.frame(PC1 = PCA.dds.0$x[,1], PC2 = PCA.dds.0$x[,2],
+                         PC3 = PCA.dds.0$x[,3], PC4 = PCA.dds.0$x[,4])
+dataGG.dds.0$Stage <- factor(rep(c("Blastula", "Gastrula", "Larva"), each=15)[2:45], levels = c("Blastula", "Gastrula", "Larva"))
+dataGG.dds.0$Condition <- factor(rep(rep(c("H.e", "H.t", "Hybrid", "A.e", "A.t"), each=3),3)[2:45], levels = c("H.e", "H.t", "Hybrid", "A.e", "A.t"))
+makeLab0 <- function(x,pc) paste0("PC",pc,": ",x,"% variance")
+p.pca.dds.0.clsc <- ggplot(dataGG.dds.0, aes(PC1,PC2,col=Stage,shape=Condition)) + geom_point(size = 5, stroke=1.2) + scale_shape_manual(values = c(24,25,11,2,6)) + xlab(makeLab0(percentVar.dds.0[1],1)) + ylab(makeLab0(percentVar.dds.0[2],2)) + aes(fill=Stage) + theme_classic()+ theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + ggtitle("PCA Plot, PC1 vs PC2") +  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))
+
+ggsave(filename="./output/PCA.dds.0.pdf", plot=p.pca.dds.0.clsc, width=8, height=6, units="in")
+ggsave(filename="./output/PCA.dds.0.space.pdf", plot=p.pca.dds.0.clsc + xlim(-140,140) + ylim(-85,95), width=10, height=6, units="in")
+
+```
+## Use 5 dds objects for statistics tests:
+No.|Name  |Data       |Columns/cols         |Norm?|Contrast            |Design|
+---|------|-----------|---------------------|-----|--------------------|------|
+1  |dds.1 |He,Ht,Hy   |c(1:8, 15:23, 30:38) |Yes  |HtvsHe HyvsHe HyvsHt|Type  |
+2  |dds.2 |Ae,At      |c(9:14, 24:29, 39:44)|No   |AtvsAe     Paired   |Paired|
+3  |dds.b |He,Ht,Ae,At|c(1:5,9:14)          |Y/N  |TransTest (Gen*Ori) |      |
+4  |dds.g |He,Ht,Ae,At|c(15:20, 24:29)      |Y/N  |TransTest (Gen*Ori) |      |
+5  |dds.l |He,Ht,Ae,At|c(30:35, 39:44)      |Y/N  |TransTest (Gen*Ori) |      |
+
+# 6. Prepare dds.1 inheritance mode test
+```{r}
+library(DESeq2)
+## TODO: add lfcShrink
+## cols for 5 dds objects:
+cols.1 <- c(1:8, 15:23, 30:38)
+cols.2 <- c(9:14, 24:29, 39:44)
+cols.b <- c(1:5,9:14)  
+cols.g <- c(15:20, 24:29)
+cols.l <- c(30:35, 39:44)
+
+## dds.1
+cts.1 <- cts.0[,cols.1]
+coldata.1 <- coldata.0[cols.1,]
+coldata.1 <- droplevels(coldata.1)
+all(rownames(coldata.1) == colnames(cts.1))
+dds.1 <- DESeqDataSetFromMatrix(countData = cts.1,
+                                colData = coldata.1,
+                                design = ~ Type)
+mcols(dds.1) <- DataFrame(mcols(dds.1),geneinfo.0)
+dds.1 <- DESeq(dds.1)
+
+## plots for counts numbers and size factors
+pdf(paste0("./output/SizeFactor.dds1.pdf"), width = 5, height = 8)
+par(mfrow=c(2,1))
+sizeFactors(dds.1)
+barplot(colSums(cts.1)/10^6, las = 2, main = "Counts (Million)")
+barplot(sizeFactors(dds.1), las = 2, main = "Size Factors")
+par(mfrow=c(1,1))
+dev.off()
+```
+# 7. Inheritance mode tests: preparation
+```{r}
+## Funtions: make histogram of p values, label genes passing or not passing the tests.
+pval.hist <- function(res.stage.a.b, string.plot.name) {
+  pdf(paste0("./output/pval.hist.",deparse(substitute(res.stage.a.b)),".pdf"), width = 8, height = 6)
+  use <- res.stage.a.b$baseMean > metadata(res.stage.a.b)$filterThreshold
+  h1 <- hist(res.stage.a.b$pvalue[!use], breaks=0:50/50, plot=FALSE)
+  h2 <- hist(res.stage.a.b$pvalue[use], breaks=0:50/50, plot=FALSE)
+  colori <- c(`do not pass`="khaki", `pass`="powderblue")
+  barplot(height = rbind(h1$counts, h2$counts), beside = FALSE,col = colori, space = 0, 
+          main = string.plot.name, ylab="frequency")
+  text(x = c(0, length(h1$counts)), y = 0, label = paste(c(0,1)),
+       adj = c(0.5,1.7), xpd=NA)
+  legend("top", fill=rev(colori), legend=rev(names(colori)))
+  dev.off()
+}
+```
+# 7.1. Inheritance mode tests: Blastula
+```{r}
+## Ht vs He; Code: 000, 100 (down) or 200 (up)
+res.b.ht.he <- results(dds.1, contrast = c("Type", "Ht.B", "He.B"), alpha = 0.1)
+res.b.ht.he <- lfcShrink(dds.1, contrast = c("Type", "Ht.B", "He.B"), alpha = 0.1)
+summary(res.b.ht.he)
+resOr.b.ht.he <- res.b.ht.he[order(res.b.ht.he$padj),]
+write.csv(as.data.frame(res.b.ht.he), "./output/res.b.ht.he.csv")
+
+## Hy vs He; Code: 00, 10 (down) or 20 (up)
+res.b.hy.he <- results(dds.1, contrast = c("Type", "Hy.B", "He.B"), alpha = 0.1)
+res.b.hy.he <- lfcShrink(dds.1, contrast = c("Type", "Hy.B", "He.B"), alpha = 0.1)
+summary(res.b.hy.he)
+resOr.b.hy.he <- res.b.hy.he[order(res.b.hy.he$padj),]
+write.csv(as.data.frame(res.b.hy.he), "./output/res.b.hy.he.csv")
+
+## Hy vs Ht; Code: 0, 1 (down) or 2 (up)
+res.b.hy.ht <- results(dds.1, contrast = c("Type", "Hy.B", "Ht.B"), alpha = 0.1)
+res.b.hy.ht <- lfcShrink(dds.1, contrast = c("Type", "Hy.B", "Ht.B"), alpha = 0.1)
+summary(res.b.hy.ht)
+resOr.b.hy.ht <- res.b.hy.ht[order(res.b.hy.ht$padj),]
+write.csv(as.data.frame(res.b.hy.ht), "./output/res.b.hy.ht.csv")
+
+## 1 QC Histogram of p values for all tests, with tests passing the filter or not labelled. 
+pval.hist(res.b.ht.he, "Blastula, Ht vs He")
+pval.hist(res.b.hy.he, "Blastula, Hy vs He")
+pval.hist(res.b.hy.ht, "Blastula, Hy vs Ht")
+
+## 2 MA plots
+pdf(paste0("./output/MAplots.dds1.Blastula.pdf"), width = 8, height = 3)
+par(mfrow=c(1,3))
+plotMA(res.b.ht.he, ylim=c(-10, 10), main="Blastula, Ht vs He, with lfcShrink")
+plotMA(res.b.hy.he, ylim=c(-10, 10), main="Blastula, Hy vs He, with lfcShrink")
+plotMA(res.b.hy.ht, ylim=c(-10, 10), main="Blastula, Hy vs Ht, with lfcShrink")
+par(mfrow=c(1,1))
+dev.off()
+
+library("vsn")
+library("ggplot2")
+
+## 3 QC Plots to show effects of transformation on the variance
+vsd.dds1 <- vst(dds.1, blind=FALSE)
+
+## The variation is high in wild caught sea urchins
+msd.dds1 <- meanSdPlot(assay(vsd.dds1))$gg + ggtitle("Variations against the mean", subtitle ="Variance stabilizing transformation (vst)")
+ggsave(filename="./output/VariationPlots.dds1.pdf", plot=msd.dds1, width=8, height=6, units="in")
+write.csv(assay(vsd.dds1), file = "./output/TransformedData.dds1.vst.csv")
+
+## 4 sample-to-sample distances Hy is closer to He, more so in Gastrula stage, less so to the Larva stage
+library("RColorBrewer")
+library(pheatmap)
+sampleDists.dds1 <- dist(t(assay(vsd.dds1)))
+sampleDist.mat.dds1 <- as.matrix(sampleDists.dds1)
+rownames(sampleDist.mat.dds1) <- vsd.dds1$Type
+colnames(sampleDist.mat.dds1) <- vsd.dds1$Type
+colors.dist <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pdf("./output/SampleDist.dds1.page2.pdf", width = 8, height = 6)
+pheatmap(sampleDist.mat.dds1,
+         clustering_distance_rows=sampleDists.dds1,
+         clustering_distance_cols=sampleDists.dds1,
+         col=colors.dist)
+dev.off()
+
+## 5 QC plot Cook's distances to QC for outliers
+## Cook’s distance is a measure of how much a single sample is influencing the fitted coefficients for a gene, and a large value of Cook’s distance is intended to indicate an outlier count. The Cook’s distances are stored as a matrix available in assays(dds)[["cooks"]] 
+## Summary(res) show the number of outliers are low, 20-40, so this QC looks good. 
+pdf("./output/Cook'sDist.dds1.pdf", width = 8, height = 6)
+boxplot(log10(assays(dds.1)[["cooks"]]), range = 0, las = 2, main = "log10(Cook's Distance) to examine Outliers")
+dev.off()
+
+## 6 QC Despersion plot
+pdf("./output/DispersionPlot.dds1.pdf", width = 8, height = 6)
+plotDispEsts(dds.1, ylim=c(0.00000001,1000), main = "Dispersion Plot")
+dev.off()
+
+### summary of the p values of all 3 test; classify the inheritance mode. Use nested ifelse statement.
+### p.b.summary.df p: p values; b/g/l: blastula, gastrula, larva;
+p.b.summary.df <- data.frame("dds1.b.HtvsHe.padj"=as.data.frame(res.b.ht.he)$padj,
+                             "dds1.b.HtvsHe.l2fc"=as.data.frame(res.b.ht.he)$log2FoldChange,
+                             "dds1.b.HyvsHe.padj"=as.data.frame(res.b.hy.he)$padj,
+                             "dds1.b.HyvsHe.l2fc"=as.data.frame(res.b.hy.he)$log2FoldChange,
+                             "dds1.b.HyvsHt.padj"=as.data.frame(res.b.hy.ht)$padj,
+                             "dds1.b.HyvsHt.l2fc"=as.data.frame(res.b.hy.ht)$log2FoldChange,
+                             row.names = rownames(as.data.frame(res.b.ht.he)))
+p.b.summary.df$dds1.b.Code.HtvsHe <- ifelse(is.na(p.b.summary.df$dds1.b.HtvsHe.padj), 400, 
+                                     ifelse(p.b.summary.df$dds1.b.HtvsHe.padj >= 0.1, 0, 
+                                            ifelse(p.b.summary.df$dds1.b.HtvsHe.padj < 0.1 & p.b.summary.df$dds1.b.HtvsHe.l2fc < 0, 100, 
+                                                   ifelse(p.b.summary.df$dds1.b.HtvsHe.padj < 0.1 & p.b.summary.df$dds1.b.HtvsHe.l2fc > 0, 200, 500))))
+
+p.b.summary.df$dds1.b.Code.HyvsHe <- ifelse(is.na(p.b.summary.df$dds1.b.HyvsHe.padj), 400, 
+                                     ifelse(p.b.summary.df$dds1.b.HyvsHe.padj >= 0.1, 0, 
+                                            ifelse(p.b.summary.df$dds1.b.HyvsHe.padj < 0.1 & p.b.summary.df$dds1.b.HyvsHe.l2fc < 0, 10, 
+                                                   ifelse(p.b.summary.df$dds1.b.HyvsHe.padj < 0.1 & p.b.summary.df$dds1.b.HyvsHe.l2fc > 0, 20, 500))))
+
+p.b.summary.df$dds1.b.Code.HyvsHt <- ifelse(is.na(p.b.summary.df$dds1.b.HyvsHt.padj), 400, 
+                                     ifelse(p.b.summary.df$dds1.b.HyvsHt.padj >= 0.1, 0, 
+                                            ifelse(p.b.summary.df$dds1.b.HyvsHt.padj < 0.1 & p.b.summary.df$dds1.b.HyvsHt.l2fc < 0, 1, 
+                                                   ifelse(p.b.summary.df$dds1.b.HyvsHt.padj < 0.1 & p.b.summary.df$dds1.b.HyvsHt.l2fc > 0, 2, 500))))
+
+p.b.summary.df$dds1.b.Codes <- rowSums(p.b.summary.df[,7:9])
+barplot(table(p.b.summary.df$dds1.b.Codes), las = 2)
+
+code.Ambigous <- c(1,2,10,12,20,21,100,101,120,121,200,202,210,212)
+code.Additive <- c(112, 221)
+code.Conserved <- c(0)
+code.HeDominant <- c(102, 201)
+code.HtDominant <- c(110, 220)
+code.OverDominant <- c(22, 122, 222)
+code.UnderDominant <- c(11, 111, 211)
+
+p.b.summary.df$dds1.b.Primary <- ifelse(p.b.summary.df$dds1.b.Codes %in% code.Ambigous, "Ambigous", 
+                                 ifelse(p.b.summary.df$dds1.b.Codes %in% code.Additive, "Additive", 
+                                        ifelse(p.b.summary.df$dds1.b.Codes %in% code.Conserved, "Conserved", 
+                                               ifelse(p.b.summary.df$dds1.b.Codes %in% code.HeDominant, "He Dominant", 
+                                                      ifelse(p.b.summary.df$dds1.b.Codes %in% code.HtDominant, "Ht Dominant", 
+                                                             ifelse(p.b.summary.df$dds1.b.Codes %in% code.OverDominant, "Overdominant", 
+                                                                    ifelse(p.b.summary.df$dds1.b.Codes %in% code.UnderDominant, "Underdominant", "Uninformative"
+                                                                    )))))))
+table(p.b.summary.df$dds1.b.Primary)
+
+## FILTER OUT LOW COUNTS GENES. LABLE AS UNINFORMATITVE
+low.dds1.b.id <- rownames(dds.1[rowSums(counts(dds.1[,1:8])>=5) <= 3, ])
+length(low.dds1.b.id)
+p.b.summary.df[low.dds1.b.id,]$dds1.b.Primary <- "Uninformative"
+table(p.b.summary.df$dds1.b.Primary)
+
+pdf("./output/InheritanceMode.Bar.Blastula.pdf", width = 8, height = 3)
+par(mar=c(7,4,2,2))
+barplot(table(p.b.summary.df$dds1.b.Primary), las = 2, main="Blastula inheritance mode")
+par(mar=c(5.1, 4.1, 4.1, 2.1))
+dev.off()
+
+```
+# 7.2. Inheritance mode tests: Gastrula
+```{r}
+## Ht vs He; Code: 000, 100 (down) or 200 (up)
+res.g.ht.he <- results(dds.1, contrast = c("Type", "Ht.G", "He.G"), alpha = 0.1)
+res.g.ht.he <- lfcShrink(dds.1, contrast = c("Type", "Ht.G", "He.G"), alpha = 0.1)
+summary(res.g.ht.he)
+resOr.g.ht.he <- res.g.ht.he[order(res.g.ht.he$padj),]
+write.csv(as.data.frame(res.g.ht.he), "./output/res.g.ht.he.csv")
+
+## Hy vs He; Code: 00, 10 (down) or 20 (up)
+res.g.hy.he <- results(dds.1, contrast = c("Type", "Hy.G", "He.G"), alpha = 0.1)
+res.g.hy.he <- lfcShrink(dds.1, contrast = c("Type", "Hy.G", "He.G"), alpha = 0.1)
+summary(res.g.hy.he)
+resOr.g.hy.he <- res.g.hy.he[order(res.g.hy.he$padj),]
+write.csv(as.data.frame(res.g.hy.he), "./output/res.g.hy.he.csv")
+
+## Hy vs He; Code: 0, 1 (down) or 2 (up)
+res.g.hy.ht <- results(dds.1, contrast = c("Type", "Hy.G", "Ht.G"), alpha = 0.1)
+res.g.hy.ht <- lfcShrink(dds.1, contrast = c("Type", "Hy.G", "Ht.G"), alpha = 0.1)
+summary(res.g.hy.ht)
+resOr.g.hy.ht <- res.g.hy.ht[order(res.g.hy.ht$padj),]
+write.csv(as.data.frame(res.g.hy.ht), "./output/res.g.hy.ht.csv")
+
+### Histogram of p values for all tests, with tests passing the filter or not labelled. 
+pval.hist(res.g.ht.he, "Gastrula, Ht vs He")
+pval.hist(res.g.hy.he, "Gastrula, Hy vs He")
+pval.hist(res.g.hy.ht, "Gastrula, Hy vs Ht")
+
+pdf(paste0("./output/MAplots.dds1.Gastrula.pdf"), width = 8, height = 3)
+par(mfrow=c(1,3))
+plotMA(res.g.ht.he, ylim=c(-10, 10), main="Gastrula, Ht vs He, with lfcShrink")
+plotMA(res.g.hy.he, ylim=c(-10, 10), main="Gastrula, Hy vs He, with lfcShrink")
+plotMA(res.g.hy.ht, ylim=c(-10, 10), main="Gastrula, Hy vs Ht, with lfcShrink")
+par(mfrow=c(1,1))
+dev.off()
+### summary of the p values of all 3 test; classify the inheritance mode. Use nested ifelse statement.
+### p.g.summary.df p: p values; b/g/l: blastula, gastrula, larva;
+
+p.g.summary.df <- data.frame("dds1.g.HtvsHe.padj"=as.data.frame(res.g.ht.he)$padj,
+                             "dds1.g.HtvsHe.l2fc"=as.data.frame(res.g.ht.he)$log2FoldChange,
+                             "dds1.g.HyvsHe.padj"=as.data.frame(res.g.hy.he)$padj,
+                             "dds1.g.HyvsHe.l2fc"=as.data.frame(res.g.hy.he)$log2FoldChange,
+                             "dds1.g.HyvsHt.padj"=as.data.frame(res.g.hy.ht)$padj,
+                             "dds1.g.HyvsHt.l2fc"=as.data.frame(res.g.hy.ht)$log2FoldChange,
+                             row.names = rownames(as.data.frame(res.g.ht.he)))
+p.g.summary.df$dds1.g.Code.HtvsHe <- ifelse(is.na(p.g.summary.df$dds1.g.HtvsHe.padj), 400, 
+                                     ifelse(p.g.summary.df$dds1.g.HtvsHe.padj >= 0.1, 0, 
+                                            ifelse(p.g.summary.df$dds1.g.HtvsHe.padj < 0.1 & p.g.summary.df$dds1.g.HtvsHe.l2fc < 0, 100, 
+                                                   ifelse(p.g.summary.df$dds1.g.HtvsHe.padj < 0.1 & p.g.summary.df$dds1.g.HtvsHe.l2fc > 0, 200, 500))))
+
+p.g.summary.df$dds1.g.Code.HyvsHe <- ifelse(is.na(p.g.summary.df$dds1.g.HyvsHe.padj), 400, 
+                                     ifelse(p.g.summary.df$dds1.g.HyvsHe.padj >= 0.1, 0, 
+                                            ifelse(p.g.summary.df$dds1.g.HyvsHe.padj < 0.1 & p.g.summary.df$dds1.g.HyvsHe.l2fc < 0, 10, 
+                                                   ifelse(p.g.summary.df$dds1.g.HyvsHe.padj < 0.1 & p.g.summary.df$dds1.g.HyvsHe.l2fc > 0, 20, 500))))
+
+p.g.summary.df$dds1.g.Code.HyvsHt <- ifelse(is.na(p.g.summary.df$dds1.g.HyvsHt.padj), 400, 
+                                     ifelse(p.g.summary.df$dds1.g.HyvsHt.padj >= 0.1, 0, 
+                                            ifelse(p.g.summary.df$dds1.g.HyvsHt.padj < 0.1 & p.g.summary.df$dds1.g.HyvsHt.l2fc < 0, 1, 
+                                                   ifelse(p.g.summary.df$dds1.g.HyvsHt.padj < 0.1 & p.g.summary.df$dds1.g.HyvsHt.l2fc > 0, 2, 500))))
+
+p.g.summary.df$dds1.g.Codes <- rowSums(p.g.summary.df[,7:9])
+barplot(table(p.g.summary.df$dds1.g.Codes), las = 2)
+
+p.g.summary.df$dds1.g.Primary <- ifelse(p.g.summary.df$dds1.g.Codes %in% code.Ambigous, "Ambigous", 
+                                 ifelse(p.g.summary.df$dds1.g.Codes %in% code.Additive, "Additive", 
+                                        ifelse(p.g.summary.df$dds1.g.Codes %in% code.Conserved, "Conserved", 
+                                               ifelse(p.g.summary.df$dds1.g.Codes %in% code.HeDominant, "He Dominant", 
+                                                      ifelse(p.g.summary.df$dds1.g.Codes %in% code.HtDominant, "Ht Dominant", 
+                                                             ifelse(p.g.summary.df$dds1.g.Codes %in% code.OverDominant, "Overdominant", 
+                                                                    ifelse(p.g.summary.df$dds1.g.Codes %in% code.UnderDominant, "Underdominant", "Uninformative"
+                                                                    )))))))
+low.dds1.g.id <- rownames(dds.1[rowSums(counts(dds.1[,9:17])>=5) <= 3, ])
+p.g.summary.df[low.dds1.g.id,]$dds1.g.Primary <- "Uninformative"
+table(p.g.summary.df$dds1.g.Primary)
+
+pdf("./output/InheritanceMode.Bar.Gastrula.pdf", width = 8, height = 3)
+par(mar=c(7,4,2,2))
+barplot(table(p.g.summary.df$dds1.g.Primary), las = 2, main="Gastrula inheritance mode")
+par(mar=c(5.1, 4.1, 4.1, 2.1))
+dev.off()
+```
+# 7.3. Inheritance mode tests: Larva
+```{r}
+## Ht vs He; Code: 000, 100 (down) or 200 (up)
+res.l.ht.he <- results(dds.1, contrast = c("Type", "Ht.L", "He.L"), alpha = 0.1)
+res.l.ht.he <- lfcShrink(dds.1, contrast = c("Type", "Ht.L", "He.L"), alpha = 0.1)
+summary(res.l.ht.he)
+resOr.l.ht.he <- res.l.ht.he[order(res.l.ht.he$padj),]
+write.csv(as.data.frame(res.l.ht.he), "./output/res.l.ht.he.csv")
+
+## Hy vs He; Code: 00, 10 (down) or 20 (up)
+res.l.hy.he <- results(dds.1, contrast = c("Type", "Hy.L", "He.L"), alpha = 0.1)
+res.l.hy.he <- lfcShrink(dds.1, contrast = c("Type", "Hy.L", "He.L"), alpha = 0.1)
+summary(res.l.hy.he)
+resOr.l.hy.he <- res.l.hy.he[order(res.l.hy.he$padj),]
+write.csv(as.data.frame(res.l.hy.he), "./output/res.l.hy.he.csv")
+
+## Hy vs He; Code: 0, 1 (down) or 2 (up)
+res.l.hy.ht <- results(dds.1, contrast = c("Type", "Hy.L", "Ht.L"), alpha = 0.1)
+res.l.hy.ht <- lfcShrink(dds.1, contrast = c("Type", "Hy.L", "Ht.L"), alpha = 0.1)
+summary(res.l.hy.ht)
+resOr.l.hy.ht <- res.l.hy.ht[order(res.l.hy.ht$padj),]
+write.csv(as.data.frame(res.l.hy.ht), "./output/res.l.hy.ht.csv")
+
+### Histogram of p values for all tests, with tests passing the filter or not labelled. 
+pval.hist(res.l.ht.he, "Larve, Ht vs He")
+pval.hist(res.l.hy.he, "Larve, Hy vs He")
+pval.hist(res.l.hy.ht, "Larve, Hy vs Ht")
+
+pdf(paste0("./output/MAplots.dds1.Lastrula.pdf"), width = 8, height = 3)
+par(mfrow=c(1,3))
+plotMA(res.l.ht.he, ylim=c(-10, 10), main="Larva, Ht vs He, with lfcShrink")
+plotMA(res.l.hy.he, ylim=c(-10, 10), main="Larva, Hy vs He, with lfcShrink")
+plotMA(res.l.hy.ht, ylim=c(-10, 10), main="Larva, Hy vs Ht, with lfcShrink")
+par(mfrow=c(1,1))
+dev.off()
+### summary of the p values of all 3 test; classify the inheritance mode. Use nested ifelse statement.
+### p.l.summary.df p: p values; b/g/l: blastula, gastrula, larva;
+
+p.l.summary.df <- data.frame("dds1.l.HtvsHe.padj"=as.data.frame(res.l.ht.he)$padj,
+                             "dds1.l.HtvsHe.l2fc"=as.data.frame(res.l.ht.he)$log2FoldChange,
+                             "dds1.l.HyvsHe.padj"=as.data.frame(res.l.hy.he)$padj,
+                             "dds1.l.HyvsHe.l2fc"=as.data.frame(res.l.hy.he)$log2FoldChange,
+                             "dds1.l.HyvsHt.padj"=as.data.frame(res.l.hy.ht)$padj,
+                             "dds1.l.HyvsHt.l2fc"=as.data.frame(res.l.hy.ht)$log2FoldChange,
+                             row.names = rownames(as.data.frame(res.l.ht.he)))
+p.l.summary.df$dds1.l.Code.HtvsHe <- ifelse(is.na(p.l.summary.df$dds1.l.HtvsHe.padj), 400, 
+                                     ifelse(p.l.summary.df$dds1.l.HtvsHe.padj >= 0.1, 0, 
+                                            ifelse(p.l.summary.df$dds1.l.HtvsHe.padj < 0.1 & p.l.summary.df$dds1.l.HtvsHe.l2fc < 0, 100, 
+                                                   ifelse(p.l.summary.df$dds1.l.HtvsHe.padj < 0.1 & p.l.summary.df$dds1.l.HtvsHe.l2fc > 0, 200, 500))))
+
+p.l.summary.df$dds1.l.Code.HyvsHe <- ifelse(is.na(p.l.summary.df$dds1.l.HyvsHe.padj), 400, 
+                                     ifelse(p.l.summary.df$dds1.l.HyvsHe.padj >= 0.1, 0, 
+                                            ifelse(p.l.summary.df$dds1.l.HyvsHe.padj < 0.1 & p.l.summary.df$dds1.l.HyvsHe.l2fc < 0, 10, 
+                                                   ifelse(p.l.summary.df$dds1.l.HyvsHe.padj < 0.1 & p.l.summary.df$dds1.l.HyvsHe.l2fc > 0, 20, 500))))
+
+p.l.summary.df$dds1.l.Code.HyvsHt <- ifelse(is.na(p.l.summary.df$dds1.l.HyvsHt.padj), 400, 
+                                     ifelse(p.l.summary.df$dds1.l.HyvsHt.padj >= 0.1, 0, 
+                                            ifelse(p.l.summary.df$dds1.l.HyvsHt.padj < 0.1 & p.l.summary.df$dds1.l.HyvsHt.l2fc < 0, 1, 
+                                                   ifelse(p.l.summary.df$dds1.l.HyvsHt.padj < 0.1 & p.l.summary.df$dds1.l.HyvsHt.l2fc > 0, 2, 500))))
+
+p.l.summary.df$dds1.l.Codes <- rowSums(p.l.summary.df[,7:9])
+barplot(table(p.l.summary.df$dds1.l.Codes), las = 2)
+
+p.l.summary.df$dds1.l.Primary <- ifelse(p.l.summary.df$dds1.l.Codes %in% code.Ambigous, "Ambigous", 
+                                 ifelse(p.l.summary.df$dds1.l.Codes %in% code.Additive, "Additive", 
+                                        ifelse(p.l.summary.df$dds1.l.Codes %in% code.Conserved, "Conserved", 
+                                               ifelse(p.l.summary.df$dds1.l.Codes %in% code.HeDominant, "He Dominant", 
+                                                      ifelse(p.l.summary.df$dds1.l.Codes %in% code.HtDominant, "Ht Dominant", 
+                                                             ifelse(p.l.summary.df$dds1.l.Codes %in% code.OverDominant, "Overdominant", 
+                                                                    ifelse(p.l.summary.df$dds1.l.Codes %in% code.UnderDominant, "Underdominant", "Uninformative"
+                                                                    )))))))
+low.dds1.l.id <- rownames(dds.1[rowSums(counts(dds.1[,18:26])>=5) <= 3, ])
+length(low.dds1.l.id)
+# table(p.l.summary.df[low.dds1.l.id,]$dds1.l.Primary) 
+p.l.summary.df[low.dds1.l.id,]$dds1.l.Primary <- "Uninformative"
+table(p.l.summary.df$dds1.l.Primary)
+
+pdf("./output/InheritanceMode.Bar.Larva.pdf", width = 8, height = 3)
+par(mar=c(7,4,2,2))
+barplot(table(p.l.summary.df$dds1.l.Primary), las = 2, main="Larva inheritance mode")
+par(mar=c(5.1, 4.1, 4.1, 2.1))
+dev.off()
+
+```
+# 7.4. Inheritance mode tests: Summary
+```{r}
+inheriMode.all.df <- data.frame("Blastula" = data.frame(unclass(table(p.b.summary.df$dds1.b.Primary)))[[1]],
+                                "Gastrula" = data.frame(unclass(table(p.g.summary.df$dds1.g.Primary)))[[1]],
+                                "Larva" = data.frame(unclass(table(p.l.summary.df$dds1.l.Primary)))[[1]],
+                                row.names = rownames(data.frame(unclass(table(p.b.summary.df$dds1.b.Primary)))))
+inheriMode.all.df$Mode <- rownames(inheriMode.all.df)
+
+p.b.summary.df$ID <- rownames(p.b.summary.df); p.g.summary.df$ID <- rownames(p.g.summary.df); p.l.summary.df$ID <- rownames(p.l.summary.df)
+
+library(dplyr)
+inheriMod.summary.df <- left_join(p.b.summary.df, p.g.summary.df, by="ID") %>% 
+  left_join(., p.l.summary.df, by="ID")
+inheriMod.simple.df <- inheriMod.summary.df[,c(12,11,23,34)]
+colnames(inheriMod.simple.df) <- c("ID", "MOD.Blastula", "MOD.Gastrula", "MOD.Larva")
+
+inheriMod.simple.df$Mod.3stages <- ifelse(inheriMod.simple.df$MOD.Blastula == "Additive" & inheriMod.simple.df$MOD.Gastrula == "Additive" & inheriMod.simple.df$MOD.Larva == "Additive", "Yes", "No")
+
+library(reshape2); library(ggplot2); library(RColorBrewer)
+
+inheriMode.all.lf <- melt(cbind(inheriMode.all.df[4], as.matrix(inheriMode.all.df[1:3])), variable.name = "Stages", value.name = "NumberOfGenes", id.vars = "Mode")
+
+myColors.x <- brewer.pal(9,"Set1")
+names(myColors.x) <- c("Additive", "Ht Dominant", "Underdominant", "He Dominant", "Conserved", "Overdominant", "Ambigous", "Uninformative","x")
+myColors.x[6] <- "#00441B"
+colScale.x <- scale_colour_manual(name = "Category",values = myColors.x)
+
+p.inheriMod.allCategories.lf <- ggplot(data=inheriMode.all.lf, aes(x=Stages, y=NumberOfGenes, group=Mode, color=Mode)) + colScale.x + 
+  geom_line(size=2)+geom_point(size=4)+theme_classic()+theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA))+ 
+  xlab("") + ylab("Number of Genes") + ggtitle("") + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))
+  
+
+ggsave(filename="./output/inheriMod.allCategories.pdf", plot=p.inheriMod.allCategories.lf, width=8, height=6, units="in")
+ggsave(filename="./output/inheriMod.allCategories.no.pdf", plot=p.inheriMod.allCategories.lf + theme(legend.position="none"), width=6, height=6, units="in")
+
+## 
+inheriMode.part.lf <- inheriMode.all.lf[! inheriMode.all.lf$Mode %in% c("Ambigous", "Uninformative"),]
+
+p.inheriMod.partCategories.lf <- ggplot(data=inheriMode.part.lf, aes(x=Stages, y=NumberOfGenes, group=Mode, color=Mode)) + colScale.x + 
+  geom_line(size=2)+geom_point(size=4)+theme_classic()+theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA))+ 
+  xlab("") + ylab("Number of Genes") + ggtitle("") + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))
+
+ggsave(filename="./output/inheriMod.partCategories.pdf", plot=p.inheriMod.partCategories.lf, width=8, height=6, units="in")
+ggsave(filename="./output/inheriMod.partCategories.no.pdf", plot=p.inheriMod.partCategories.lf + theme(legend.position="none"), width=6, height=6, units="in")
+
+```
+# 7.5 Scatter plots and bar plots of inheritance mode
+```{r}
+## Use assay(vsd.dds1) to make scatter plots
+vsd.dds1.df <- as.data.frame(assay(vsd.dds1))
+vsd.dds1.df$He.B.mean <- rowMeans(vsd.dds1.df[,1:2])
+vsd.dds1.df$Ht.B.mean <- rowMeans(vsd.dds1.df[,3:5])
+vsd.dds1.df$Hy.B.mean <- rowMeans(vsd.dds1.df[,6:8])
+vsd.dds1.df$He.G.mean <- rowMeans(vsd.dds1.df[,9:11])
+vsd.dds1.df$Ht.G.mean <- rowMeans(vsd.dds1.df[,12:14])
+vsd.dds1.df$Hy.G.mean <- rowMeans(vsd.dds1.df[,15:17])
+vsd.dds1.df$He.L.mean <- rowMeans(vsd.dds1.df[,18:20])
+vsd.dds1.df$Ht.L.mean <- rowMeans(vsd.dds1.df[,21:23])
+vsd.dds1.df$Hy.L.mean <- rowMeans(vsd.dds1.df[,24:26])
+
+vsd.dds1.df$"B:log2(hybrid)-log2(H.e)" <- vsd.dds1.df$Hy.B.mean - vsd.dds1.df$He.B.mean
+vsd.dds1.df$"B:log2(hybrid)-log2(H.t)" <- vsd.dds1.df$Hy.B.mean - vsd.dds1.df$Ht.B.mean
+vsd.dds1.df$"G:log2(hybrid)-log2(H.e)" <- vsd.dds1.df$Hy.G.mean - vsd.dds1.df$He.G.mean
+vsd.dds1.df$"G:log2(hybrid)-log2(H.t)" <- vsd.dds1.df$Hy.G.mean - vsd.dds1.df$Ht.G.mean
+vsd.dds1.df$"L:log2(hybrid)-log2(H.e)" <- vsd.dds1.df$Hy.L.mean - vsd.dds1.df$He.L.mean
+vsd.dds1.df$"L:log2(hybrid)-log2(H.t)" <- vsd.dds1.df$Hy.L.mean - vsd.dds1.df$Ht.L.mean
+
+vsd.dds1.df$ID <- rownames(vsd.dds1.df)
+vsd.dds1.df <- left_join(vsd.dds1.df, inheriMod.simple.df, by="ID")
+
+## Blastula stage
+sct.inheriMod.b.all<- ggplot(vsd.dds1.df, aes(x=vsd.dds1.df$`B:log2(hybrid)-log2(H.e)`, y=vsd.dds1.df$`B:log2(hybrid)-log2(H.t)`, color=as.factor(vsd.dds1.df$MOD.Blastula))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.x + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(hybrid)-log2(H.e)") + ylab("log2(hybrid)-log2(H.t)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/inheriMod.sct.b.all.pdf", plot=sct.inheriMod.b.all, width=8, height=6, units="in")
+ggsave(filename="./output/inheriMod.sct.b.all.no.pdf", plot=sct.inheriMod.b.all + theme(legend.position="none"), width=6, height=6, units="in")
+
+good.list.inherimod <- c("Additive", "Conserved", "He Dominant", "Ht Dominant", "Overdominant", "Underdominant")
+vsd.dds1.df.b.flt <- vsd.dds1.df[vsd.dds1.df$MOD.Blastula %in% good.list.inherimod ,]
+dim(vsd.dds1.df.b.flt)
+
+sct.inheriMod.b.flt<- ggplot(vsd.dds1.df.b.flt, aes(x=vsd.dds1.df.b.flt$`B:log2(hybrid)-log2(H.e)`, y=vsd.dds1.df.b.flt$`B:log2(hybrid)-log2(H.t)`, color=as.factor(vsd.dds1.df.b.flt$MOD.Blastula))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.x + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(hybrid)-log2(H.e)") + ylab("log2(hybrid)-log2(H.t)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/inheriMod.sct.b.flt.pdf", plot=sct.inheriMod.b.flt, width=8, height=6, units="in")
+ggsave(filename="./output/inheriMod.sct.b.flt.no.pdf", plot=sct.inheriMod.b.flt + theme(legend.position="none"), width=6, height=6, units="in")
+
+## Gastrula stage
+sct.inheriMod.g.all<- ggplot(vsd.dds1.df, aes(x=vsd.dds1.df$`G:log2(hybrid)-log2(H.e)`, y=vsd.dds1.df$`G:log2(hybrid)-log2(H.t)`, color=as.factor(vsd.dds1.df$MOD.Gastrula))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.x + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(hybrid)-log2(H.e)") + ylab("log2(hybrid)-log2(H.t)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/inheriMod.sct.g.all.pdf", plot=sct.inheriMod.g.all, width=8, height=6, units="in")
+ggsave(filename="./output/inheriMod.sct.g.all.no.pdf", plot=sct.inheriMod.g.all + theme(legend.position="none"), width=6, height=6, units="in")
+
+
+vsd.dds1.df.g.flt <- vsd.dds1.df[vsd.dds1.df$MOD.Gastrula %in% good.list.inherimod ,]
+dim(vsd.dds1.df.g.flt)
+
+sct.inheriMod.g.flt<- ggplot(vsd.dds1.df.g.flt, aes(x=vsd.dds1.df.g.flt$`G:log2(hybrid)-log2(H.e)`, y=vsd.dds1.df.g.flt$`G:log2(hybrid)-log2(H.t)`, color=as.factor(vsd.dds1.df.g.flt$MOD.Gastrula))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.x + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(hybrid)-log2(H.e)") + ylab("log2(hybrid)-log2(H.t)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/inheriMod.sct.g.flt.pdf", plot=sct.inheriMod.g.flt, width=8, height=6, units="in")
+ggsave(filename="./output/inheriMod.sct.g.flt.no.pdf", plot=sct.inheriMod.g.flt + theme(legend.position="none"), width=6, height=6, units="in")
+
+## Larva stage
+sct.inheriMod.l.all<- ggplot(vsd.dds1.df, aes(x=vsd.dds1.df$`L:log2(hybrid)-log2(H.e)`, y=vsd.dds1.df$`L:log2(hybrid)-log2(H.t)`, color=as.factor(vsd.dds1.df$MOD.Larva))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.x + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(hybrid)-log2(H.e)") + ylab("log2(hybrid)-log2(H.t)") + theme_bw()+theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+sct.inheriMod.l.all<- ggplot(vsd.dds1.df, aes(x=vsd.dds1.df$`L:log2(hybrid)-log2(H.e)`, y=vsd.dds1.df$`L:log2(hybrid)-log2(H.t)`, color=as.factor(vsd.dds1.df$MOD.Larva))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.x + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(hybrid)-log2(H.e)") + ylab("log2(hybrid)-log2(H.t)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/inheriMod.sct.l.all.pdf", plot=sct.inheriMod.l.all, width=8, height=6, units="in")
+ggsave(filename="./output/inheriMod.sct.l.all.no.pdf", plot=sct.inheriMod.l.all + theme(legend.position="none"), width=6, height=6, units="in")
+
+
+vsd.dds1.df.l.flt <- vsd.dds1.df[vsd.dds1.df$MOD.Larva %in% good.list.inherimod ,]
+dim(vsd.dds1.df.l.flt)
+
+sct.inheriMod.l.flt<- ggplot(vsd.dds1.df.l.flt, aes(x=vsd.dds1.df.l.flt$`L:log2(hybrid)-log2(H.e)`, y=vsd.dds1.df.l.flt$`L:log2(hybrid)-log2(H.t)`, color=as.factor(vsd.dds1.df.l.flt$MOD.Larva))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.x + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(hybrid)-log2(H.e)") + ylab("log2(hybrid)-log2(H.t)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/inheriMod.sct.l.flt.pdf", plot=sct.inheriMod.l.flt, width=8, height=6, units="in")
+ggsave(filename="./output/inheriMod.sct.l.flt.no.pdf", plot=sct.inheriMod.l.flt + theme(legend.position="none"), width=6, height=6, units="in")
+
+getwd()
+```
+# 7.6 Save inheriMod.simple.df and other files
+```{r}
+inheriMod.simple.df <- left_join(inheriMod.simple.df,geneinfo.0,by="ID")
+write.csv(inheriMod.simple.df, "./output/inheriMod.simple.anno.csv")
+write.csv(inheriMod.summary.df, "./output/inheriMod.summary.csv")
+write.csv(inheriMode.all.df, "./output/inheriMode.all.csv")
+write.csv(vsd.dds1.df, "./output/vsd.dds1.csv")
+```
+# 8. dds.2 At vs Ae test
+```{r}
+## dds.2 cols.2 <- c(9:14, 24:29, 39:44)
+cts.2 <- cts.0[,cols.2]
+coldata.2 <- coldata.0[cols.2,]
+coldata.2 <- droplevels(coldata.2)
+all(rownames(coldata.2) == colnames(cts.2))
+dds.2 <- DESeqDataSetFromMatrix(countData = cts.2,
+                                colData = coldata.2,
+                                design = ~ Replicate + Type)
+mcols(dds.2) <- DataFrame(mcols(dds.2),geneinfo.0)
+dds.2 <- estimateSizeFactors(dds.2)
+sizeFactors(dds.2) <- rep(1,18)
+dds.2 <- estimateDispersions(dds.2)
+dds.2 <- nbinomWaldTest(dds.2)
+res.b.at.ae <- results(dds.2, contrast = c("Type", "At.B", "Ae.B"), alpha = 0.1)
+res.b.at.ae <- lfcShrink(dds.2, contrast = c("Type", "At.B", "Ae.B"), alpha = 0.1)
+summary(res.b.at.ae)
+resOr.b.at.ae <- res.b.at.ae[order(res.b.at.ae$padj),]
+write.csv(as.data.frame(res.b.at.ae), "./output/res.b.at.ae.csv")
+
+## At.G vs Ae.G; Code: 00, 10 (down) or 20 (up)
+res.g.at.ae <- results(dds.2, contrast = c("Type", "At.G", "Ae.G"), alpha = 0.1)
+res.g.at.ae <- lfcShrink(dds.2, contrast = c("Type", "At.G", "Ae.G"), alpha = 0.1)
+summary(res.g.at.ae)
+resOr.g.at.ae <- res.g.at.ae[order(res.g.at.ae$padj),]
+write.csv(as.data.frame(res.g.at.ae), "./output/res.g.at.ae.csv")
+
+## At.L vs Ae.L; Code: 00, 10 (down) or 20 (up)
+res.l.at.ae <- results(dds.2, contrast = c("Type", "At.L", "Ae.L"), alpha = 0.1)
+res.l.at.ae <- lfcShrink(dds.2, contrast = c("Type", "At.L", "Ae.L"), alpha = 0.1)
+summary(res.l.at.ae)
+resOr.l.at.ae <- res.l.at.ae[order(res.l.at.ae$padj),]
+write.csv(as.data.frame(res.l.at.ae), "./output/res.l.at.ae.csv")
+
+### Histogram of p values for all tests, with tests passing the filter or not labelled. 
+pval.hist(res.b.at.ae, "Blastula, At vs Ae")
+pval.hist(res.g.at.ae, "Gastrula, At vs Ae")
+pval.hist(res.l.at.ae, "Larve, At vs Ae")
+
+pdf(paste0("./output/SizeFactor.dds2.pdf"), width = 5, height = 8)
+par(mfrow=c(2,1))
+barplot(colSums(cts.2)/10^6, las = 2, main = "Counts (Million)")
+barplot(sizeFactors(dds.2), las = 2, main = "Size Factors")
+par(mfrow=c(1,1))
+dev.off()
+
+pdf(paste0("./output/MAplots.dds2.3stages.pdf"), width = 8, height = 3)
+par(mfrow=c(1,3))
+plotMA(res.b.at.ae, ylim=c(-10, 10), main="Blastula, At vs Ae, with lfcShrink")
+plotMA(res.g.at.ae, ylim=c(-10, 10), main="Gastrula, At vs Ae, with lfcShrink")
+plotMA(res.l.at.ae, ylim=c(-10, 10), main="Larva, At vs Ae, with lfcShrink")
+par(mfrow=c(1,1))
+dev.off()
+
+```
+# 8.1. TransTest
+```{r}
+cols.b <- c(1:5,9:14)  
+cols.g <- c(15:20, 24:29)
+cols.l <- c(30:35, 39:44)
+
+## dds.b, TransTest for Blastula stage
+cts.b <- cts.0[,cols.b]
+coldata.b <- coldata.0[cols.b,]
+coldata.b <- droplevels(coldata.b)
+all(rownames(coldata.b) == colnames(cts.b))
+Gen.b <- coldata.b$Geno
+Ori.b <- coldata.b$Origin
+design.b <- model.matrix(~0 + Gen.b * Ori.b)
+library(limma); is.fullrank(design.b); detach(package:limma)
+dds.b <- DESeqDataSetFromMatrix(countData = cts.b,
+                                colData = coldata.b,
+                                design = ~ 0+ Geno*Origin)
+mcols(dds.b) <- DataFrame(mcols(dds.b),geneinfo.0)
+
+dds.b <- estimateSizeFactors(dds.b)
+size.factor.b <- sizeFactors(dds.b)
+size.factor.b[6:8]=size.factor.b[9:11]=(size.factor.b[6:8]+size.factor.b[9:11])/2
+sizeFactors(dds.b) <- size.factor.b
+dds.b <- estimateDispersions(dds.b)
+dds.b <- nbinomWaldTest(dds.b)
+colnames(design.b)<-c('H.e','H.t','allelic','int')
+
+res.b.trantest <- results(dds.b, name = "GenoB.T.OriginB.A", alpha = 0.1)
+summary(res.b.trantest)
+resOr.b.trantest <- res.b.trantest[order(res.b.trantest$padj),]
+write.csv(as.data.frame(res.b.trantest), "./output/res.b.trantest.csv")
+
+
+## dds.g, TransTest for Gastrula stage
+cts.g <- cts.0[,cols.g]
+coldata.g <- coldata.0[cols.g,]
+coldata.g <- droplevels(coldata.g)
+all(rownames(coldata.g) == colnames(cts.g))
+Gen.g <- coldata.g$Geno
+Ori.g <- coldata.g$Origin
+design.g <- model.matrix(~0 + Gen.g * Ori.g)
+library(limma); is.fullrank(design.g); detach(package:limma)
+dds.g <- DESeqDataSetFromMatrix(countData = cts.g,
+                                colData = coldata.g,
+                                design = ~ 0+ Geno*Origin)
+mcols(dds.g) <- DataFrame(mcols(dds.g),geneinfo.0)
+dds.g <- estimateSizeFactors(dds.g)
+size.factor.g <- sizeFactors(dds.g)
+size.factor.g[7:9]=size.factor.g[10:12]=(size.factor.g[7:9]+size.factor.g[10:12])/2
+sizeFactors(dds.g) <- size.factor.g
+dds.g <- estimateDispersions(dds.g)
+dds.g <- nbinomWaldTest(dds.g)
+colnames(design.g)<-c('H.e','H.t','allelic','int')
+res.g.trantest <- results(dds.g, name = "GenoG.T.OriginG.A", alpha = 0.1)
+summary(res.g.trantest)
+resOr.g.trantest <- res.g.trantest[order(res.g.trantest$padj),]
+write.csv(as.data.frame(res.g.trantest), "./output/res.g.trantest.csv")
+
+## try test for equal, does't work for low lfcThreshold. 
+## resLA <- results(dds, lfcThreshold=.5, altHypothesis="lessAbs")
+res.g.trantest.la <- results(dds.g, name = "GenoG.T.OriginG.A", alpha = 0.1, lfcThreshold = 1.8, altHypothesis = "lessAbs")
+summary(res.g.trantest.la)
+hist(res.g.trantest.la$padj, breaks = 50)
+
+## dds.l, TransTest for Larva stage
+cts.l <- cts.0[,cols.l]
+coldata.l <- coldata.0[cols.l,]
+coldata.l <- droplevels(coldata.l)
+all(rownames(coldata.l) == colnames(cts.l))
+Gen.l <- coldata.l$Geno
+Ori.l <- coldata.l$Origin
+design.l <- model.matrix(~0 + Gen.l * Ori.l)
+library(limma); is.fullrank(design.l); detach(package:limma)
+dds.l <- DESeqDataSetFromMatrix(countData = cts.l,
+                                colData = coldata.l,
+                                design = ~ 0+ Geno*Origin)
+mcols(dds.l) <- DataFrame(mcols(dds.l),geneinfo.0)
+
+dds.l <- estimateSizeFactors(dds.l)
+size.factor.l <- sizeFactors(dds.l)
+size.factor.l[7:9]=size.factor.l[10:12]=(size.factor.l[7:9]+size.factor.l[10:12])/2
+sizeFactors(dds.l) <- size.factor.l
+dds.l <- estimateDispersions(dds.l)
+dds.l <- nbinomWaldTest(dds.l)
+colnames(design.l)<-c('H.e','H.t','allelic','int')
+
+res.l.trantest <- results(dds.l, name = "GenoL.T.OriginL.A", alpha = 0.1)
+summary(res.l.trantest)
+resOr.l.trantest <- res.l.trantest[order(res.l.trantest$padj),]
+write.csv(as.data.frame(res.l.trantest), "./output/res.l.trantest.csv")
+
+### Histogram of p values for all tests, with tests passing the filter or not labelled. 
+pval.hist(res.b.trantest, "Blastula, TransTest")
+pval.hist(res.g.trantest, "Gastrula, TransTest")
+pval.hist(res.l.trantest, "Larve, TransTest")
+
+pdf("./output/SizeFactor.dds.bgl.pdf", width = 8, height = 10)
+par(mfrow=c(3,2))
+barplot(colSums(cts.b)/10^6, las = 2, main = "Library size, Blastula")
+barplot(sizeFactors(dds.b), las = 2, main = "Size Factors, Blastula")
+barplot(colSums(cts.g)/10^6, las = 2, main = "Library size, Gastrula")
+barplot(sizeFactors(dds.g), las = 2, main = "Size Factors, Gastrula")
+barplot(colSums(cts.l)/10^6, las = 2, main = "Library size, Larva")
+barplot(sizeFactors(dds.l), las = 2, main = "Size Factors, Larva")
+par(mfrow=c(1,1))
+dev.off()
+
+pdf(paste0("./output/MAplots.dds.bgl.3stages.pdf"), width = 8, height = 3)
+par(mfrow=c(1,3))
+plotMA(res.b.trantest, ylim=c(-10, 10), main="Blastula, TransTest")
+plotMA(res.g.trantest, ylim=c(-10, 10), main="Gastrula, TransTest")
+plotMA(res.l.trantest, ylim=c(-10, 10), main="Larva, TransTest")
+par(mfrow=c(1,1))
+dev.off()
+```
+# 8.2 Summary of transtest
+```{r}
+### summary of the p values of all 3 test; classify the inheritance mode. Use nested ifelse statement.
+### pct.b.summary.df p: p values; ct: cis- trans-; b/g/l: blastula, gastrula, larva;
+code.Ambigous <- c(2,3,10,100)
+code.Compensatory <- c(12, 13)
+code.Conserved <- c(0)
+code.AllTrans <- c(102, 103)
+code.AllCis <- c(110)
+code.CisPlusTrans <- c(112)
+code.CisByTrans <- c(113)
+
+## Blastula Stage
+pct.b.summary <- data.frame("HtvsHe.padj"=as.data.frame(res.b.ht.he)$padj,
+                             "HtvsHe.l2fc"=as.data.frame(res.b.ht.he)$log2FoldChange,
+                             "AtvsAe.padj"=as.data.frame(res.b.at.ae)$padj,
+                             "AtvsAe.l2fc"=as.data.frame(res.b.at.ae)$log2FoldChange,
+                             "B.transTest.padj"=as.data.frame(res.b.trantest)$padj,
+                             row.names = rownames(as.data.frame(res.b.ht.he)))
+pct.b.summary$l2fcRatio <- pct.b.summary$HtvsHe.l2fc/pct.b.summary$AtvsAe.l2fc
+
+pct.b.summary$Code.HtvsHe <- ifelse(is.na(pct.b.summary$HtvsHe.padj), 400, 
+                                     ifelse(pct.b.summary$HtvsHe.padj >= 0.1, 0, 
+                                            ifelse(pct.b.summary$HtvsHe.padj < 0.1 , 100, 500)))
+
+pct.b.summary$Code.AtvsAe <- ifelse(is.na(pct.b.summary$AtvsAe.padj), 400,
+                                      ifelse(pct.b.summary$AtvsAe.padj >= 0.1, 0,
+                                             ifelse(pct.b.summary$AtvsAe.padj < 0.1, 10, 500)))
+
+pct.b.summary$Code.TransTest <- ifelse(is.na(pct.b.summary$B.transTest.padj), 400,
+                                         ifelse(pct.b.summary$B.transTest.padj >= 0.1, 0,
+                                                ifelse(pct.b.summary$B.transTest.padj < 0.1 & pct.b.summary$l2fcRatio >1, 2,
+                                                       ifelse(pct.b.summary$B.transTest.padj < 0.1 & pct.b.summary$l2fcRatio <1, 3, 500))))
+
+
+pct.b.summary$Codes <- rowSums(pct.b.summary[,7:9])
+barplot(table(pct.b.summary$Codes), las = 2)
+
+pct.b.summary$ct.b.Primary <- ifelse(pct.b.summary$Codes %in% code.Ambigous, "Ambigous", 
+                                 ifelse(pct.b.summary$Codes %in% code.Compensatory, "Compensatory", 
+                                        ifelse(pct.b.summary$Codes %in% code.Conserved, "Conserved", 
+                                               ifelse(pct.b.summary$Codes %in% code.AllTrans, "all trans", 
+                                                      ifelse(pct.b.summary$Codes %in% code.AllCis, "all cis", 
+                                                             ifelse(pct.b.summary$Codes %in% code.CisPlusTrans, "cis + trans", 
+                                                                    ifelse(pct.b.summary$Codes %in% code.CisByTrans, "cis x trans", "Uninformative"
+                                                                    )))))))
+pct.b.summary$ID <- rownames(pct.b.summary)
+low.ddsb.b.id <- rownames(dds.b[rowSums(counts(dds.b)<3) >= 5, ])
+pct.b.summary[low.ddsb.b.id,]$ct.b.Primary <- "Uninformative"
+'SPU_030148' %in% low.ddsb.b.id # VegF FALSE 
+'SPU_004551' %in% low.ddsb.b.id # FoxB TRUE
+
+## Gastrula Stage
+pct.g.summary <- data.frame("HtvsHe.padj"=as.data.frame(res.g.ht.he)$padj,
+                             "HtvsHe.l2fc"=as.data.frame(res.g.ht.he)$log2FoldChange,
+                             "AtvsAe.padj"=as.data.frame(res.g.at.ae)$padj,
+                             "AtvsAe.l2fc"=as.data.frame(res.g.at.ae)$log2FoldChange,
+                             "B.transTest.padj"=as.data.frame(res.g.trantest)$padj,
+                             row.names = rownames(as.data.frame(res.g.ht.he)))
+pct.g.summary$l2fcRatio <- pct.g.summary$HtvsHe.l2fc/pct.g.summary$AtvsAe.l2fc
+
+pct.g.summary$Code.HtvsHe <- ifelse(is.na(pct.g.summary$HtvsHe.padj), 400, 
+                                     ifelse(pct.g.summary$HtvsHe.padj >= 0.1, 0, 
+                                            ifelse(pct.g.summary$HtvsHe.padj < 0.1 , 100, 500)))
+
+pct.g.summary$Code.AtvsAe <- ifelse(is.na(pct.g.summary$AtvsAe.padj), 400,
+                                      ifelse(pct.g.summary$AtvsAe.padj >= 0.1, 0,
+                                             ifelse(pct.g.summary$AtvsAe.padj < 0.1, 10, 500)))
+
+pct.g.summary$Code.TransTest <- ifelse(is.na(pct.g.summary$B.transTest.padj), 400,
+                                         ifelse(pct.g.summary$B.transTest.padj >= 0.1, 0,
+                                                ifelse(pct.g.summary$B.transTest.padj < 0.1 & pct.g.summary$l2fcRatio >1, 2,
+                                                       ifelse(pct.g.summary$B.transTest.padj < 0.1 & pct.g.summary$l2fcRatio <1, 3, 500))))
+
+
+pct.g.summary$Codes <- rowSums(pct.g.summary[,7:9])
+barplot(table(pct.g.summary$Codes), las = 2)
+
+pct.g.summary$ct.g.Primary <- ifelse(pct.g.summary$Codes %in% code.Ambigous, "Ambigous", 
+                                 ifelse(pct.g.summary$Codes %in% code.Compensatory, "Compensatory", 
+                                        ifelse(pct.g.summary$Codes %in% code.Conserved, "Conserved", 
+                                               ifelse(pct.g.summary$Codes %in% code.AllTrans, "all trans", 
+                                                      ifelse(pct.g.summary$Codes %in% code.AllCis, "all cis", 
+                                                             ifelse(pct.g.summary$Codes %in% code.CisPlusTrans, "cis + trans", 
+                                                                    ifelse(pct.g.summary$Codes %in% code.CisByTrans, "cis x trans", "Uninformative"
+                                                                    )))))))
+pct.g.summary$ID <- rownames(pct.g.summary)
+
+low.ddsb.g.id <- rownames(dds.g[rowSums(counts(dds.g)<3) >= 6, ])
+pct.g.summary[low.ddsb.g.id,]$ct.g.Primary <- "Uninformative"
+
+## Larva Stage
+pct.l.summary <- data.frame("HtvsHe.padj"=as.data.frame(res.l.ht.he)$padj,
+                             "HtvsHe.l2fc"=as.data.frame(res.l.ht.he)$log2FoldChange,
+                             "AtvsAe.padj"=as.data.frame(res.l.at.ae)$padj,
+                             "AtvsAe.l2fc"=as.data.frame(res.l.at.ae)$log2FoldChange,
+                             "B.transTest.padj"=as.data.frame(res.l.trantest)$padj,
+                             row.names = rownames(as.data.frame(res.l.ht.he)))
+pct.l.summary$l2fcRatio <- pct.l.summary$HtvsHe.l2fc/pct.l.summary$AtvsAe.l2fc
+
+pct.l.summary$Code.HtvsHe <- ifelse(is.na(pct.l.summary$HtvsHe.padj), 400, 
+                                     ifelse(pct.l.summary$HtvsHe.padj >= 0.1, 0, 
+                                            ifelse(pct.l.summary$HtvsHe.padj < 0.1 , 100, 500)))
+
+pct.l.summary$Code.AtvsAe <- ifelse(is.na(pct.l.summary$AtvsAe.padj), 400,
+                                      ifelse(pct.l.summary$AtvsAe.padj >= 0.1, 0,
+                                             ifelse(pct.l.summary$AtvsAe.padj < 0.1, 10, 500)))
+
+pct.l.summary$Code.TransTest <- ifelse(is.na(pct.l.summary$B.transTest.padj), 400,
+                                         ifelse(pct.l.summary$B.transTest.padj >= 0.1, 0,
+                                                ifelse(pct.l.summary$B.transTest.padj < 0.1 & pct.l.summary$l2fcRatio >1, 2,
+                                                       ifelse(pct.l.summary$B.transTest.padj < 0.1 & pct.l.summary$l2fcRatio <1, 3, 500))))
+
+
+pct.l.summary$Codes <- rowSums(pct.l.summary[,7:9])
+barplot(table(pct.l.summary$Codes), las = 2)
+
+pct.l.summary$ct.l.Primary <- ifelse(pct.l.summary$Codes %in% code.Ambigous, "Ambigous", 
+                                 ifelse(pct.l.summary$Codes %in% code.Compensatory, "Compensatory", 
+                                        ifelse(pct.l.summary$Codes %in% code.Conserved, "Conserved", 
+                                               ifelse(pct.l.summary$Codes %in% code.AllTrans, "all trans", 
+                                                      ifelse(pct.l.summary$Codes %in% code.AllCis, "all cis", 
+                                                             ifelse(pct.l.summary$Codes %in% code.CisPlusTrans, "cis + trans", 
+                                                                    ifelse(pct.l.summary$Codes %in% code.CisByTrans, "cis x trans", "Uninformative"
+                                                                    )))))))
+pct.l.summary$ID <- rownames(pct.l.summary)
+low.ddsb.l.id <- rownames(dds.l[rowSums(counts(dds.l)<3) >= 6, ])
+pct.l.summary[low.ddsb.l.id,]$ct.l.Primary <- "Uninformative"
+getwd()
+```
+# 8.3 Making line plot
+```{r}
+cistrans.summary.df <- left_join(pct.b.summary,pct.g.summary, by = "ID") %>% left_join(., pct.l.summary, by = "ID")
+cistrans.simple.df <- left_join(pct.b.summary[,11:12],pct.g.summary[,11:12], by = "ID") %>% left_join(., pct.l.summary[,11:12], by = "ID")
+
+cistrans.simple.df <- cistrans.simple.df[,c("ID","ct.b.Primary","ct.g.Primary","ct.l.Primary")]
+cistrans.simple.df <- left_join(cistrans.simple.df,geneinfo.0,by="ID")
+
+
+cistrans.all.df <- data.frame("Blastula" = data.frame(unclass(table(pct.b.summary$ct.b.Primary)))[[1]],
+                      "Gastrula" = data.frame(unclass(table(pct.g.summary$ct.g.Primary)))[[1]],
+                      "Larva" = data.frame(unclass(table(pct.l.summary$ct.l.Primary)))[[1]],
+                      row.names = rownames(data.frame(unclass(table(pct.b.summary$ct.b.Primary)))))
+cistrans.all.df$Type <- rownames(cistrans.all.df)
+cistrans.all.lf <- melt(cbind(cistrans.all.df[4], as.matrix(cistrans.all.df[1:3])), variable.name = "Stages", value.name = "NumberOfGenes", id.vars = "Type")
+myColors.y <- brewer.pal(9,"Set1")
+names(myColors.y) <- c("all cis", "cis x trans", "cis + trans", "Compensatory", "Conserved", "all trans", "Ambigous", "Uninformative","x")
+myColors.y[6] <- "#00441B"
+colScale.y <- scale_colour_manual(name = "Category",values = myColors.y)
+
+p.cistrans.allCategories.lf <- ggplot(data=cistrans.all.lf, aes(x=Stages, y=NumberOfGenes, group=Type, color=Type)) + colScale.y + 
+  geom_line(size=2)+geom_point(size=4)+theme_classic()+theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA))+ 
+  xlab("") + ylab("Number of Genes") + ggtitle("") + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))
+  
+ggsave(filename="./output/cistrans.allCategories.pdf", plot=p.cistrans.allCategories.lf, width=8, height=6, units="in")
+ggsave(filename="./output/cistrans.allCategories.no.pdf", plot=p.cistrans.allCategories.lf + theme(legend.position="none"), width=6, height=6, units="in")
+
+## 
+cistrans.part.lf <- cistrans.all.lf[! cistrans.all.lf$Type %in% c("Ambigous", "Uninformative"),]
+
+p.cistrans.partCategories.lf <- ggplot(data=cistrans.part.lf, aes(x=Stages, y=NumberOfGenes, group=Type, color=Type)) + colScale.y + 
+  geom_line(size=2)+geom_point(size=4)+theme_classic()+theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA))+ 
+  xlab("") + ylab("Number of Genes") + ggtitle("") + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))
+
+ggsave(filename="./output/cistrans.partCategories.pdf", plot=p.cistrans.partCategories.lf, width=8, height=6, units="in")
+ggsave(filename="./output/cistrans.partCategories.no.pdf", plot=p.cistrans.partCategories.lf + theme(legend.position="none"), width=6, height=6, units="in")
+
+```
+# 8.4 Making scatter plot and bar plot for transtest
+```{r warning=FALSE}
+vsd.ddsb <- vst(dds.b, blind=FALSE)
+vsd.ddsg <- vst(dds.g, blind=FALSE)
+vsd.ddsl <- vst(dds.l, blind=FALSE)
+
+vsd.ddsb.df <- as.data.frame(assay(vsd.ddsb))
+vsd.ddsg.df <- as.data.frame(assay(vsd.ddsg))
+vsd.ddsl.df <- as.data.frame(assay(vsd.ddsl))
+vsd.ddsb.df$ID <- rownames(vsd.ddsb.df)
+vsd.ddsg.df$ID <- rownames(vsd.ddsg.df)
+vsd.ddsl.df$ID <- rownames(vsd.ddsl.df)
+vsd.dds.ct.df <- left_join(vsd.ddsb.df,vsd.ddsg.df, by = "ID") %>% left_join(., vsd.ddsl.df, by = "ID")
+rownames(vsd.dds.ct.df) <- vsd.dds.ct.df$ID
+vsd.dds.ct.df$ID <- NULL
+
+vsd.dds.ct.df$He.B.mean <- rowMeans(vsd.dds.ct.df[,1:2])
+vsd.dds.ct.df$Ht.B.mean <- rowMeans(vsd.dds.ct.df[,3:5])
+vsd.dds.ct.df$Ae.B.mean <- rowMeans(vsd.dds.ct.df[,6:8])
+vsd.dds.ct.df$At.B.mean <- rowMeans(vsd.dds.ct.df[,9:11])
+vsd.dds.ct.df$He.G.mean <- rowMeans(vsd.dds.ct.df[,12:14])
+vsd.dds.ct.df$Ht.G.mean <- rowMeans(vsd.dds.ct.df[,15:17])
+vsd.dds.ct.df$Ae.G.mean <- rowMeans(vsd.dds.ct.df[,18:20])
+vsd.dds.ct.df$At.G.mean <- rowMeans(vsd.dds.ct.df[,21:23])
+vsd.dds.ct.df$He.L.mean <- rowMeans(vsd.dds.ct.df[,24:26])
+vsd.dds.ct.df$Ht.L.mean <- rowMeans(vsd.dds.ct.df[,27:29])
+vsd.dds.ct.df$Ae.L.mean <- rowMeans(vsd.dds.ct.df[,30:32])
+vsd.dds.ct.df$At.L.mean <- rowMeans(vsd.dds.ct.df[,33:35])
+vsd.dds.ct.df$"B:log2(He/Ht)" <- vsd.dds.ct.df$He.B.mean - vsd.dds.ct.df$Ht.B.mean
+vsd.dds.ct.df$"B:log2(Ae/At)" <- vsd.dds.ct.df$Ae.B.mean - vsd.dds.ct.df$At.B.mean
+vsd.dds.ct.df$"G:log2(He/Ht)" <- vsd.dds.ct.df$He.G.mean - vsd.dds.ct.df$Ht.G.mean
+vsd.dds.ct.df$"G:log2(Ae/At)" <- vsd.dds.ct.df$Ae.G.mean - vsd.dds.ct.df$At.G.mean
+vsd.dds.ct.df$"L:log2(He/Ht)" <- vsd.dds.ct.df$He.L.mean - vsd.dds.ct.df$Ht.L.mean
+vsd.dds.ct.df$"L:log2(Ae/At)" <- vsd.dds.ct.df$Ae.L.mean - vsd.dds.ct.df$At.L.mean
+
+vsd.dds.ct.df$ID <- rownames(vsd.dds.ct.df)
+vsd.dds.ct.df <- left_join(vsd.dds.ct.df, cistrans.simple.df, by="ID")
+write.csv(vsd.dds.ct.df,"./output/vsd.dds.ct.df.csv")
+
+## Scatter plot for Blastula stage
+sct.cistrans.b.all<- ggplot(vsd.dds.ct.df, aes(x=vsd.dds.ct.df$`B:log2(He/Ht)`, y=vsd.dds.ct.df$`B:log2(Ae/At)`, color=as.factor(vsd.dds.ct.df$ct.b.Primary))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.y + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(He/Ht)") + ylab("log2(Ae/At)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/cistrans.sct.b.all.pdf", plot=sct.cistrans.b.all, width=8, height=6, units="in")
+ggsave(filename="./output/cistrans.sct.b.all.no.pdf", plot=sct.cistrans.b.all + theme(legend.position="none"), width=6, height=6, units="in")
+
+good.list.cistrans <- c("all cis", "all trans", "cis + trans", "cis x trans", "Compensatory", "Conserved")
+vsd.dds.ct.df.b.flt <- vsd.dds.ct.df[vsd.dds.ct.df$ct.b.Primary %in% good.list.cistrans ,]
+dim(vsd.dds.ct.df.b.flt)
+
+sct.cistrans.b.flt<- ggplot(vsd.dds.ct.df.b.flt, aes(x=vsd.dds.ct.df.b.flt$`B:log2(He/Ht)`, y=vsd.dds.ct.df.b.flt$`B:log2(Ae/At)`, color=as.factor(vsd.dds.ct.df.b.flt$ct.b.Primary))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.y + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(He/Ht)") + ylab("log2(Ae/At)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/cistrans.sct.b.flt.pdf", plot=sct.cistrans.b.flt, width=8, height=6, units="in")
+ggsave(filename="./output/cistrans.sct.b.flt.no.pdf", plot=sct.cistrans.b.flt + theme(legend.position="none"), width=6, height=6, units="in")
+
+## Scatter plot for Gastrula stage
+sct.cistrans.g.all<- ggplot(vsd.dds.ct.df, aes(x=vsd.dds.ct.df$`G:log2(He/Ht)`, y=vsd.dds.ct.df$`G:log2(Ae/At)`, color=as.factor(vsd.dds.ct.df$ct.g.Primary))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.y + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(He/Ht)") + ylab("log2(Ae/At)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/cistrans.sct.g.all.pdf", plot=sct.cistrans.g.all, width=8, height=6, units="in")
+ggsave(filename="./output/cistrans.sct.g.all.no.pdf", plot=sct.cistrans.g.all + theme(legend.position="none"), width=6, height=6, units="in")
+
+vsd.dds.ct.df.g.flt <- vsd.dds.ct.df[vsd.dds.ct.df$ct.g.Primary %in% good.list.cistrans ,]
+dim(vsd.dds.ct.df.g.flt)
+
+sct.cistrans.g.flt<- ggplot(vsd.dds.ct.df.g.flt, aes(x=vsd.dds.ct.df.g.flt$`G:log2(He/Ht)`, y=vsd.dds.ct.df.g.flt$`G:log2(Ae/At)`, color=as.factor(vsd.dds.ct.df.g.flt$ct.g.Primary))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.y + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(He/Ht)") + ylab("log2(Ae/At)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/cistrans.sct.g.flt.pdf", plot=sct.cistrans.g.flt, width=8, height=6, units="in")
+ggsave(filename="./output/cistrans.sct.g.flt.no.pdf", plot=sct.cistrans.g.flt + theme(legend.position="none"), width=6, height=6, units="in")
+
+## Scatter plot for Larva stage
+sct.cistrans.l.all<- ggplot(vsd.dds.ct.df, aes(x=vsd.dds.ct.df$`L:log2(He/Ht)`, y=vsd.dds.ct.df$`L:log2(Ae/At)`, color=as.factor(vsd.dds.ct.df$ct.l.Primary))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.y + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(He/Ht)") + ylab("log2(Ae/At)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/cistrans.sct.l.all.pdf", plot=sct.cistrans.l.all, width=8, height=6, units="in")
+ggsave(filename="./output/cistrans.sct.l.all.no.pdf", plot=sct.cistrans.l.all + theme(legend.position="none"), width=6, height=6, units="in")
+
+vsd.dds.ct.df.l.flt <- vsd.dds.ct.df[vsd.dds.ct.df$ct.l.Primary %in% good.list.cistrans ,]
+dim(vsd.dds.ct.df.l.flt)
+
+sct.cistrans.l.flt<- ggplot(vsd.dds.ct.df.l.flt, aes(x=vsd.dds.ct.df.l.flt$`L:log2(He/Ht)`, y=vsd.dds.ct.df.l.flt$`L:log2(Ae/At)`, color=as.factor(vsd.dds.ct.df.l.flt$ct.l.Primary))) + 
+  geom_point(alpha=0.5, size=1)  + colScale.y + xlim(-10,10) + ylim(-10,10) + theme(plot.title = element_text(color="black", size=12, face="bold"))+ xlab("log2(He/Ht)") + ylab("log2(Ae/At)") + theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + 
+  theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines'))+ geom_abline(intercept = 0, slope = 1, size=1, alpha=0.3) + 
+  geom_vline(xintercept=0, size=1, alpha=0.3) + geom_hline(yintercept=0, size=1, alpha=0.3) +
+  guides(colour = guide_legend(override.aes = list(size=8)))
+
+ggsave(filename="./output/cistrans.sct.l.flt.pdf", plot=sct.cistrans.l.flt, width=8, height=6, units="in")
+ggsave(filename="./output/cistrans.sct.l.flt.no.pdf", plot=sct.cistrans.l.flt + theme(legend.position="none"), width=6, height=6, units="in")
+```
+# 9. Prepare for gene plots
+```{r}
+write.csv(cistrans.simple.df, "./output/cistrans.simple.csv")
+write.csv(cistrans.summary.df, "./output/cistrans.summary.csv")
+write.csv(cistrans.all.df, "./output/cistrans.all.csv")
+
+colnames(cistrans.simple.df)
+colnames(inheriMod.simple.df)
+all.summary <- left_join(cistrans.simple.df[,1:4], inheriMod.simple.df, by="ID")
+write.csv(all.summary, "./output/all.summary.csv")
+
+## 
+dds.all <- DESeqDataSetFromMatrix(countData = cts.0,
+                                colData = coldata.0,
+                                design = ~ Type)
+mcols(dds.all) <- DataFrame(mcols(dds.all),geneinfo.0)
+
+dds.all <- estimateSizeFactors(dds.all)
+size.factor.all <- sizeFactors(dds.all)
+size.factor.all
+size.factor.all[9:11]=size.factor.all[12:14]=(size.factor.all[9:11]+size.factor.all[12:14])/2
+size.factor.all[24:26]=size.factor.all[27:29]=(size.factor.all[24:26]+size.factor.all[27:29])/2
+size.factor.all[39:41]=size.factor.all[42:44]=(size.factor.all[39:41]+size.factor.all[42:44])/2
+sizeFactors(dds.all) <- size.factor.all
+dds.all <- estimateDispersions(dds.all)
+dds.all <- nbinomWaldTest(dds.all)
+pdf(paste0("./output/SizeFactor.ddsall.pdf"), width = 5, height = 8)
+par(mfrow=c(2,1))
+sizeFactors(dds.all)
+barplot(colSums(cts.0)/10^6, las = 2, main = "Counts (Million)")
+barplot(sizeFactors(dds.all), las = 2, main = "Size Factors")
+par(mfrow=c(1,1))
+dev.off()
+vsd.ddsall <- vst(dds.all, blind=FALSE)
+write.csv(assay(vsd.ddsall), file = "./output/TransformedData.ddsall.vst.csv")
+vsd.ddsall.df <- as.data.frame(assay(vsd.ddsall))
+
+vsd.ddsall.df$He.B.mean <- rowMeans(vsd.ddsall.df[,1:2])
+vsd.ddsall.df$Ht.B.mean <- rowMeans(vsd.ddsall.df[,3:5])
+vsd.ddsall.df$Hy.B.mean <- rowMeans(vsd.ddsall.df[,6:8])
+vsd.ddsall.df$Ae.B.mean <- rowMeans(vsd.ddsall.df[,9:11])
+vsd.ddsall.df$At.B.mean <- rowMeans(vsd.ddsall.df[,12:14])
+vsd.ddsall.df$He.G.mean <- rowMeans(vsd.ddsall.df[,15:17])
+vsd.ddsall.df$Ht.G.mean <- rowMeans(vsd.ddsall.df[,18:20])
+vsd.ddsall.df$Hy.G.mean <- rowMeans(vsd.ddsall.df[,21:23])
+vsd.ddsall.df$Ae.G.mean <- rowMeans(vsd.ddsall.df[,24:26])
+vsd.ddsall.df$At.G.mean <- rowMeans(vsd.ddsall.df[,27:29])
+vsd.ddsall.df$He.L.mean <- rowMeans(vsd.ddsall.df[,30:32])
+vsd.ddsall.df$Ht.L.mean <- rowMeans(vsd.ddsall.df[,33:35])
+vsd.ddsall.df$Hy.L.mean <- rowMeans(vsd.ddsall.df[,36:38])
+vsd.ddsall.df$Ae.L.mean <- rowMeans(vsd.ddsall.df[,39:41])
+vsd.ddsall.df$At.L.mean <- rowMeans(vsd.ddsall.df[,42:44])
+library(genefilter)
+vsd.ddsall.df$He.B.sd <- rowSds(vsd.ddsall.df[,1:2])
+vsd.ddsall.df$Ht.B.sd <- rowSds(vsd.ddsall.df[,3:5])
+vsd.ddsall.df$Hy.B.sd <- rowSds(vsd.ddsall.df[,6:8])
+vsd.ddsall.df$Ae.B.sd <- rowSds(vsd.ddsall.df[,9:11])
+vsd.ddsall.df$At.B.sd <- rowSds(vsd.ddsall.df[,12:14])
+vsd.ddsall.df$He.G.sd <- rowSds(vsd.ddsall.df[,15:17])
+vsd.ddsall.df$Ht.G.sd <- rowSds(vsd.ddsall.df[,18:20])
+vsd.ddsall.df$Hy.G.sd <- rowSds(vsd.ddsall.df[,21:23])
+vsd.ddsall.df$Ae.G.sd <- rowSds(vsd.ddsall.df[,24:26])
+vsd.ddsall.df$At.G.sd <- rowSds(vsd.ddsall.df[,27:29])
+vsd.ddsall.df$He.L.sd <- rowSds(vsd.ddsall.df[,30:32])
+vsd.ddsall.df$Ht.L.sd <- rowSds(vsd.ddsall.df[,33:35])
+vsd.ddsall.df$Hy.L.sd <- rowSds(vsd.ddsall.df[,36:38])
+vsd.ddsall.df$Ae.L.sd <- rowSds(vsd.ddsall.df[,39:41])
+vsd.ddsall.df$At.L.sd <- rowSds(vsd.ddsall.df[,42:44])
+
+# all.summary
+vsd.ddsall.df$ID <- rownames(vsd.ddsall.df)
+all.info <- left_join(all.summary, vsd.ddsall.df, by="ID")
+row.names(all.info) <- all.info$ID
+vsd.all.p.df <- all.info[,c("He1.B","He2.B","Ht1.B","Ht2.B","Ht3.B","Hy1.B","Hy2.B","Hy3.B","Ae1.B","Ae2.B","Ae3.B","At1.B","At2.B","At3.B","He1.G","He2.G","He3.G","Ht1.G","Ht2.G","Ht3.G","Hy1.G","Hy2.G","Hy3.G","Ae1.G","Ae2.G","Ae3.G","At1.G","At2.G","At3.G","He1.L","He2.L","He3.L","Ht1.L","Ht2.L","Ht3.L","Hy1.L","Hy2.L","Hy3.L","Ae1.L","Ae2.L","Ae3.L","At1.L","At2.L","At3.L","ID","ct.b.Primary","ct.g.Primary","ct.l.Primary","MOD.Blastula","MOD.Gastrula","MOD.Larva","name","SPU","GRN","classl1")]
+colnames(vsd.all.p.df)
+vsd.all.p.df$file.name <- paste0(vsd.all.p.df[,52],".",vsd.all.p.df[,53])
+
+write.csv(all.info, "./output/all.info.csv")
+write.csv(vsd.all.p.df, "./output/vsd.all.p.df.csv")
+write.csv(vsd.ddsall.df, "./output/vsd.ddsall.df.csv")
+getwd()
+```
+# 10. Function for gene plot
+```{r}
+dir.create("./output/geneplots")
+gene.dir <- "./output/geneplots/"
+gene.plot.f <- function(gene.list, gene.dir){
+  for (gene.id in gene.list){
+    fxx <- all.info[all.info$ID==gene.id,]
+    fxy <- fxx[,30:73]
+    fxz <- data.frame(t(fxy[1,]))
+    fxz$Species <- factor(coldata.0$Species,levels = c("He", "Ht", "Hy", "Ae", "At"))
+    fxz$Stages <- factor(c(rep("Blastula",14),rep("Gastrula",15), rep("Larva",15)), levels = c("Blastula", "Gastrula", "Larva"))
+    fxz$Replicate <- factor(coldata.0$Replicate)
+    fxz$gp <- factor(rep(c(4, 5, 6, 7, 8, 9, 1:3,1:3,1:3),3)[2:45])
+    GenoColor <- c("red2","blue4","purple","coral1","dodgerblue3")
+    names(GenoColor) <- c("He", "Ht", "Hy", "Ae", "At")
+    p.gene <- ggplot(fxz,aes(fxz$Species,fxz[,1], group = gp)) + 
+      geom_point(aes(colour = fxz$Species), shape = 21,  fill = "transparent", size = 3, stroke = 2.5, alpha = 0.8) + 
+      geom_line(color="grey") + scale_colour_manual(name = "Genotype",values = GenoColor) +
+      scale_y_continuous(expand = c(0, 0), limits = c(0, max(fxz[,1])+1)) + facet_grid(. ~ Stages)
+
+    mod_text1 <- data.frame(
+      Label1 = c(fxx$MOD.Blastula[1],fxx$MOD.Gastrula[1],fxx$MOD.Larva[1]),
+      Label2 = c("Inheritance Mode: ", NA, NA),
+      Stages = c("Blastula","Gastrula", "Larva"))
+
+    c.t_text1 <- data.frame(
+      Label1 = c(fxx$ct.b.Primary[1],fxx$ct.g.Primary[1],fxx$ct.l.Primary[1]),
+      Label2 = c("cis/trans-Change: ", NA, NA),
+      Stages = c("Blastula","Gastrula", "Larva"))
+
+    p.gene.facet <-p.gene + 
+      geom_text(x = c(0.5, 1, 1), y = -Inf, data = c.t_text1,
+                mapping = aes(x, y,label=Label1, group=NULL), 
+                hjust = 0, vjust = -0.5, colour = "dark green",size=6) +
+      geom_text(x = c(0.5, 0, 0), y = -Inf, data = c.t_text1,
+                mapping = aes(x, y,label=Label2, group=NULL), 
+                hjust = 0, vjust = -2.9, colour = "dark green") +
+      geom_text(x = c(0.5, 1, 1), y = -Inf, data = mod_text1,
+                mapping = aes(x, y,label=Label1, group=NULL), 
+                hjust = 0, vjust = -3, colour = "orange", size=6) +
+      geom_text(x = c(0.5, 0, 0), y = -Inf, data = mod_text1,
+                mapping = aes(x, y,label=Label2, group=NULL), 
+                hjust = 0, vjust = -6.7, colour = "orange")
+
+    gene.title <- paste(fxx$name[1],fxx$SPU,fxx$TrinityID,sep = " ")
+    gene.title <- gsub("[[:punct:]]", "_", gene.title)
+    p.gene.facet.format <- p.gene.facet + xlab("Genotype") + ylab("log2 transformed count") + ggtitle(gene.title) + theme_classic()+theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=12, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid"))
+
+    ggsave(filename=paste0(gene.dir, gene.title,".pdf"),plot=p.gene.facet.format,width=8, height=6, units="in")
+
+  }
+}
+
+grn.id <- rownames(all.info[all.info$GRN == "GRN",])
+all.grn.char <- all.info[grn.id,1:7]
+all.grn.char.ct <- c(all.grn.char$ct.b.Primary,all.grn.char$ct.g.Primary,all.grn.char$ct.l.Primary)
+all.grn.char.mod <- c(all.grn.char$MOD.Blastula,all.grn.char$MOD.Gastrula,all.grn.char$MOD.Larva)
+getwd()
+```
+# 11.Alluvial Diagram for cis-/trans-classification
+```{r warning=FALSE}
+library("ggalluvial")
+category.all <- all.info[,c(1:11)]
+colnames(category.all) <- c("ID","ct.b","ct.g","ct.l","md.b","md.g","md.l","Mod.3stages","SPU","name","fullname")
+rmv <- c("Ambigous","Uninformative")
+category.ct <- category.all[(!category.all$ct.b %in% rmv) & 
+                            (!category.all$ct.g %in% rmv) &
+                            (!category.all$ct.l %in% rmv) ,]
+category.ct$ct.all <- paste(category.ct$ct.b,category.ct$ct.g,category.ct$ct.l,sep = ".")
+ct.all.df <- data.frame(unclass(table(category.ct$ct.all)))
+colnames(ct.all.df)[1] <- "freq.ct.all"
+ct.all.df[,c("Blastula","Gastrula","Larva")] <- str_split_fixed(rownames(ct.all.df),"\\.",3)
+ct.keep <- factor(c("all cis","all trans","cis x trans", "cis + trans","Compensatory","Conserved"),levels = c("all cis","all trans","cis x trans", "cis + trans","Compensatory","Conserved"))
+
+ct.same3 <- paste(ct.keep,ct.keep,ct.keep,sep = ".")
+sum(category.ct$ct.all%in%ct.same3) # 1448 genes keep the same categories without changes.
+sum(!category.ct$ct.all%in%ct.same3) # 2629 genes change categories.
+sum(!category.ct$ct.all%in%ct.same3)/length(category.ct$ct.all) # 64.4% genes change categories
+write.csv(ct.all.df, "./output/dynamics.ct.all.csv")
+
+## b->g ct
+category.ct$ct.bg <- paste(category.ct$ct.b,category.ct$ct.g,sep = ".")
+ct.bg.df <- data.frame(unclass(table(category.ct$ct.bg)))
+colnames(ct.bg.df)[1] <- "freq.ct.bg"
+ct.bg.df[,c("Blastula","Gastrula")] <- str_split_fixed(rownames(ct.bg.df),"\\.",2)
+ct.bg.df$Blastula <- factor(ct.bg.df$Blastula, levels = c("all cis","all trans","cis x trans", "cis + trans","Compensatory","Conserved"))
+ct.bg.df$Gastrula <- factor(ct.bg.df$Gastrula, levels = c("all cis","all trans","cis x trans", "cis + trans","Compensatory","Conserved"))
+
+## color: 
+group.colors.ct <- c("all cis"="#E41A1C",
+                  "cis x trans"="#377EB8", 
+                  "cis + trans"="#4DAF4A",
+                  "Compensatory"="#984EA3",
+                  "all trans"="#00441B",
+                  "Conserved"="#FF7F00")
+
+p.ct.bg <- ggplot(as.data.frame(ct.bg.df), aes(y = freq.ct.bg, axis1 = Blastula, axis2 = Gastrula)) +   geom_alluvium(aes(fill = Blastula), width = 1/12) + geom_stratum(width = 1/12, fill = NA, color = "black")  + scale_x_discrete(limits = c("Blastula", "Gastrula"), expand = c(.05, .05)) + scale_fill_manual(values=group.colors.ct) +  ggtitle("cis-/trans-divergence dynamics") + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=19, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "")  
+# + geom_label(stat = "stratum", label.strata = TRUE) 
+ggsave(filename="./output/dyna.ct.bg.pdf", plot=p.ct.bg, width=5, height=6, units="in")
+
+## g->l ct
+category.ct$ct.gl <- paste(category.ct$ct.g,category.ct$ct.l,sep = ".")
+ct.gl.df <- data.frame(unclass(table(category.ct$ct.gl)))
+colnames(ct.gl.df)[1] <- "freq.ct.gl"
+ct.gl.df[,c("Gastrula","Larva")] <- str_split_fixed(rownames(ct.gl.df),"\\.",2)
+ct.gl.df$Gastrula <- factor(ct.gl.df$Gastrula, levels = c("all cis","all trans","cis x trans", "cis + trans","Compensatory","Conserved"))
+ct.gl.df$Larva <- factor(ct.gl.df$Larva, levels = c("all cis","all trans","cis x trans", "cis + trans","Compensatory","Conserved"))
+
+p.ct.gl <- ggplot(as.data.frame(ct.gl.df), aes(y = freq.ct.gl, axis1 = Gastrula, axis2 = Larva)) +  geom_alluvium(aes(fill = Gastrula), width = 1/12) + geom_stratum(width = 1/12, fill = NA, color = "black") + scale_x_discrete(limits = c("Gastrula", "Larva"), expand = c(.05, .05)) + scale_fill_manual(values=group.colors.ct) + ggtitle("cis-/trans-divergence dynamics") + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=19, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "") 
+# geom_label(stat = "stratum", label.strata = TRUE) 
+ggsave(filename="./output/dyna.ct.gl.pdf", plot=p.ct.gl, width=5, height=6, units="in")
+
+p.ct.gl.l <- ggplot(as.data.frame(ct.gl.df), aes(y = freq.ct.gl, axis1 = Gastrula, axis2 = Larva)) +  geom_alluvium(aes(fill = Larva), width = 1/12) + geom_stratum(width = 1/12, fill = NA, color = "black") + scale_x_discrete(limits = c("Gastrula", "Larva"), expand = c(.05, .05)) + scale_fill_manual(values=group.colors.ct) + ggtitle("cis-/trans-divergence dynamics") + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=19, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "") 
+# geom_label(stat = "stratum", label.strata = TRUE) 
+ggsave(filename="./output/dyna.ct.gl-l.pdf", plot=p.ct.gl.l, width=5, height=6, units="in")
+getwd()
+```
+# 12.Alluvial diagrams for mode of inheritance
+```{r warning=FALSE}
+category.md <- category.all[(!category.all$md.b %in% rmv) & 
+                            (!category.all$md.g %in% rmv) &
+                            (!category.all$md.l %in% rmv) ,]
+category.md$md.all <- paste(category.md$md.b,category.md$md.g,category.md$md.l,sep = ".")
+md.all.df <- data.frame(unclass(table(category.md$md.all)))
+colnames(md.all.df)[1] <- "freq.md.all"
+md.all.df[,c("Blastula","Gastrula","Larva")] <- str_split_fixed(rownames(md.all.df),"\\.",3)
+md.keep <- factor(c("He Dominant","Ht Dominant","Overdominant","Underdominant","Additive","Conserved"),levels = c("He Dominant","Ht Dominant","Overdominant","Underdominant","Additive","Conserved"))
+
+md.same3 <- paste(md.keep,md.keep,md.keep,sep = ".")
+sum(category.md$md.all%in%md.same3) # 2777 genes keep the same categories without changes.
+sum(!category.md$md.all%in%md.same3) # 2978 genes change categories.
+sum(!category.md$md.all%in%md.same3)/length(category.md$md.all) # 51.7% genes change categories
+
+md.tmp <- md.all.df[grepl(".Conserved.", rownames(md.all.df)),]
+sum(md.tmp$freq.md.all) # 4294
+sum(md.all.df[grepl(".Conserved.", rownames(md.all.df)),][1])
+
+sum(md.all.df[md.all.df$Larva =="Conserved",][1]) # 4234
+sum(md.all.df[grepl(".Conserved.Conserved", rownames(md.all.df)),][1]) # 3569
+(4234 -3569)/5755 # 665 , 11.56%
+
+sum(md.all.df[md.all.df$Gastrula =="Conserved",][1]) # 4294
+sum(md.all.df[grepl("Conserved.Conserved.", rownames(md.all.df)),][1]) # 3024
+(4294-3021)/5755 # 1273 , 22.11%
+
+sum(md.all.df[1]) # 5755
+
+md.tmp <- md.all.df[!grepl("Conserved", rownames(md.all.df)),]
+sum(md.tmp[1])
+write.csv(md.all.df, "./output/dynamics.md.all.csv")
+
+## b->g ct
+category.md$md.bg <- paste(category.md$md.b,category.md$md.g,sep = ".")
+md.bg.df <- data.frame(unclass(table(category.md$md.bg)))
+colnames(md.bg.df)[1] <- "freq.md.bg"
+md.bg.df[,c("Blastula","Gastrula")] <- str_split_fixed(rownames(md.bg.df),"\\.",2)
+md.bg.df$Blastula <- factor(md.bg.df$Blastula, levels = levels(md.keep))
+md.bg.df$Gastrula <- factor(md.bg.df$Gastrula, levels = levels(md.keep))
+
+group.colors.md <- c("Additive"="#E41A1C",
+                  "Ht Dominant"="#377EB8", 
+                  "Underdominant"="#4DAF4A",
+                  "He Dominant"="#984EA3",
+                  "Overdominant"="#00441B",
+                  "Conserved"="#FF7F00")
+
+p.md.bg <- ggplot(as.data.frame(md.bg.df), aes(y = freq.md.bg, axis1 = Blastula, axis2 = Gastrula)) +   geom_alluvium(aes(fill = Blastula), width = 1/12) + geom_stratum(width = 1/12, fill = NA, color = "black")  + scale_x_discrete(limits = c("Blastula", "Gastrula"), expand = c(.05, .05)) + scale_fill_manual(values=group.colors.md) +  ggtitle("Mode of inheritance dynamics") + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=19, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "") 
+# + geom_label(stat = "stratum", label.strata = TRUE) 
+ggsave(filename="./output/dyna.md.bg.pdf", plot=p.md.bg, width=5, height=6, units="in")
+
+
+## g->l ct
+category.md$md.gl <- paste(category.md$md.g,category.md$md.l,sep = ".")
+md.gl.df <- data.frame(unclass(table(category.md$md.gl)))
+colnames(md.gl.df)[1] <- "freq.md.gl"
+md.gl.df[,c("Gastrula","Larva")] <- str_split_fixed(rownames(md.gl.df),"\\.",2)
+md.gl.df$Gastrula <- factor(md.gl.df$Gastrula, levels = levels(md.keep))
+md.gl.df$Larva <- factor(md.gl.df$Larva, levels = levels(md.keep))
+
+p.md.gl <- ggplot(as.data.frame(md.gl.df), aes(y = freq.md.gl, axis1 = Gastrula, axis2 = Larva)) +  geom_alluvium(aes(fill = Gastrula), width = 1/12) + geom_stratum(width = 1/12, fill = NA, color = "black") + scale_x_discrete(limits = c("Gastrula", "Larva"), expand = c(.05, .05)) + scale_fill_manual(values=group.colors.md) + ggtitle("Mode of inheritance dynamics") + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=19, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "") 
+# geom_label(stat = "stratum", label.strata = TRUE) 
+ggsave(filename="./output/dyna.md.gl.pdf", plot=p.md.gl, width=5, height=6, units="in")
+
+p.md.gl.l <- ggplot(as.data.frame(md.gl.df), aes(y = freq.md.gl, axis1 = Gastrula, axis2 = Larva)) +  geom_alluvium(aes(fill = Larva), width = 1/12) + geom_stratum(width = 1/12, fill = NA, color = "black") + scale_x_discrete(limits = c("Gastrula", "Larva"), expand = c(.05, .05)) + scale_fill_manual(values=group.colors.md) + ggtitle("Mode of inheritance dynamics") + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=19, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "") 
+# geom_label(stat = "stratum", label.strata = TRUE) 
+ggsave(filename="./output/dyna.md.gl-l.pdf", plot=p.md.gl.l, width=5, height=6, units="in")
+getwd()
+```
+# 13.Magnitude of cis-/trans-effects
+```{r}
+## Blastula
+de.b.df <- as.data.frame(res.b.ht.he)
+de.b.df$Abs.Log2FC <- abs(de.b.df$log2FoldChange)
+de.b.df$ID <- rownames(de.b.df)
+de.b.df <- left_join(de.b.df, category.all[,1:4],by="ID")
+de.b.df$Stage <- "Blastula"
+mag.b.cis <- de.b.df[de.b.df$ct.b=="all cis",c("ID","ct.b","Abs.Log2FC","Stage")]
+mag.b.trans <- de.b.df[de.b.df$ct.b=="all trans",c("ID","ct.b","Abs.Log2FC","Stage")]
+colnames(mag.b.cis)[2] <- "Classification"
+colnames(mag.b.trans)[2] <- "Classification"
+median(mag.b.cis$Abs.Log2FC) # 2.012838
+median(mag.b.trans$Abs.Log2FC) # 1.83081
+
+shapiro.test(mag.b.cis$Abs.Log2FC)
+# W = 0.86852, p-value < 2.2e-16.  p-value < 0.05 implying that the distribution of the data are  significantly different from normal distribution. In other words, we cannot assume the normality.
+wilcox.test(mag.b.cis$Abs.Log2FC, mag.b.trans$Abs.Log2FC)
+# W = 513770, p-value = 4.598e-07 alternative hypothesis: true location shift is not equal to 0
+
+## Gastrula
+de.g.df <- as.data.frame(res.g.ht.he)
+de.g.df$Abs.Log2FC <- abs(de.g.df$log2FoldChange)
+de.g.df$ID <- rownames(de.g.df)
+de.g.df <- left_join(de.g.df, category.all[,1:4],by="ID")
+de.g.df$Stage <- "Gastrula"
+mag.g.cis <- de.g.df[de.g.df$ct.g=="all cis",c("ID","ct.g","Abs.Log2FC","Stage")]
+mag.g.trans <- de.g.df[de.g.df$ct.g=="all trans",c("ID","ct.g","Abs.Log2FC","Stage")]
+colnames(mag.g.cis)[2] <- "Classification"
+colnames(mag.g.trans)[2] <- "Classification"
+median(mag.g.cis$Abs.Log2FC) # 2.196386
+median(mag.g.trans$Abs.Log2FC) # 1.892541
+
+shapiro.test(mag.g.cis$Abs.Log2FC)
+# W = 0.8619, p-value < 2.2e-16.  p-value < 0.05 implying that the distribution of the data are  significantly different from normal distribution. In other words, we cannot assume the normality.
+wilcox.test(mag.g.cis$Abs.Log2FC, mag.g.trans$Abs.Log2FC)
+# W = 201120, p-value = 8.483e-05 alternative hypothesis: true location shift is not equal to 0
+
+## Larva
+de.l.df <- as.data.frame(res.l.ht.he)
+de.l.df$Abs.Log2FC <- abs(de.l.df$log2FoldChange)
+de.l.df$ID <- rownames(de.l.df)
+de.l.df <- left_join(de.l.df, category.all[,1:4],by="ID")
+de.l.df$Stage <- "Larva"
+mag.l.cis <- de.l.df[de.l.df$ct.l=="all cis",c("ID","ct.l","Abs.Log2FC","Stage")]
+mag.l.trans <- de.l.df[de.l.df$ct.l=="all trans",c("ID","ct.l","Abs.Log2FC","Stage")]
+colnames(mag.l.cis)[2] <- "Classification"
+colnames(mag.l.trans)[2] <- "Classification"
+median(mag.l.cis$Abs.Log2FC) # 2.143873
+median(mag.l.trans$Abs.Log2FC) # 2.598037
+
+shapiro.test(mag.l.cis$Abs.Log2FC)
+# W = 0.8469, p-value < 2.2e-16.  p-value < 0.05 implying that the distribution of the data are  significantly different from normal distribution. In other words, we cannot assume the normality.
+wilcox.test(mag.l.cis$Abs.Log2FC, mag.l.trans$Abs.Log2FC)
+# W = 101750, p-value = 2.679e-05 alternative hypothesis: true location shift is not equal to 0
+
+bgl.ct <- rbind(mag.b.cis,mag.b.trans,mag.g.cis,mag.g.trans,mag.l.cis,mag.l.trans)
+
+p.mag.ct <- ggplot(bgl.ct, aes(x=Stage,y=Abs.Log2FC,fill=Classification)) + geom_boxplot(notch = TRUE) + theme_classic()+theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA))+ xlab("Classification") + ylab("Magnitude (log2FC)") + ggtitle("") + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=20), axis.title=element_text(size=22),legend.text = element_text(size=19), legend.title=element_text(size=19), legend.key = element_rect(size = 5, colour = NA), legend.key.size = unit(1.5, 'lines')) 
+
+ggsave(filename="./output/Magnitude.cis.trans.pdf",plot=p.mag.ct,width=8, height=6, units="in")
+
+library(ggpubr)
+compare_means(Abs.Log2FC ~ Classification, data = bgl.ct, group.by = "Stage")
+p.mag.ct.final <- p.mag.ct + stat_compare_means(aes(label = ..p.signif..))
+ggsave(filename="./output/Magnitude.cis.trans.final.pdf",plot=p.mag.ct.final,width=8, height=6, units="in")
+
+getwd()
+```
+# 15.Relationship between cis-/trans classification and mode of inheritance. 
+```{r warning=FALSE}
+rmv <- c("Ambigous","Uninformative")
+category.cbmb <- category.all[(!category.all$ct.b %in% rmv) & 
+                            (!category.all$md.b %in% rmv) ,]
+lev1 <- c("He Dominant","Ht Dominant", "Additive", "Overdominant", "Underdominant","Conserved")
+category.cbmb$cbmb.all <- paste(category.cbmb$ct.b,category.cbmb$md.b,sep = ".")
+cbmb.df <- data.frame(unclass(table(category.cbmb$cbmb.all)))
+colnames(cbmb.df)[1] <- "freq.cbmb"
+cbmb.df[,c("c.t.","Mode")] <- str_split_fixed(rownames(cbmb.df),"\\.",2)
+cbmb.df$c.t. <- factor(cbmb.df$c.t., levels = rev(levels(ct.keep)))
+cbmb.df$Mode <- factor(cbmb.df$Mode, levels = rev(lev1))
+
+## gastrula
+category.cgmg <- category.all[(!category.all$ct.g %in% rmv) & 
+                            (!category.all$md.g %in% rmv) ,]
+category.cgmg$cgmg.all <- paste(category.cgmg$ct.g,category.cgmg$md.g,sep = ".")
+cgmg.df <- data.frame(unclass(table(category.cgmg$cgmg.all)))
+colnames(cgmg.df)[1] <- "freq.cgmg"
+cgmg.df[,c("c.t.","Mode")] <- str_split_fixed(rownames(cgmg.df),"\\.",2)
+cgmg.df$c.t. <- factor(cgmg.df$c.t., levels = rev(levels(ct.keep)))
+cgmg.df$Mode <- factor(cgmg.df$Mode, levels = rev(lev1))
+
+## larva
+category.clml <- category.all[(!category.all$ct.l %in% rmv) & 
+                            (!category.all$md.l %in% rmv) ,]
+category.clml$clml.all <- paste(category.clml$ct.l,category.clml$md.l,sep = ".")
+clml.df <- data.frame(unclass(table(category.clml$clml.all)))
+colnames(clml.df)[1] <- "freq.clml"
+clml.df[,c("c.t.","Mode")] <- str_split_fixed(rownames(clml.df),"\\.",2)
+clml.df$c.t. <- factor(clml.df$c.t., levels = rev(levels(ct.keep)))
+clml.df$Mode <- factor(clml.df$Mode, levels = rev(lev1))
+
+library(scales)
+ct.factor <- ct.keep
+md.factor <- md.keep
+levels(md.factor) <- c("He Dominant","Ht Dominant","Additive","Overdominant","Underdominant","Conserved")
+ct.md.df <- data.frame("c.t."=rep(ct.factor,each = 6),"Mode"=rep(md.factor,6))
+ct.md.df$comb <- paste(ct.md.df$c.t.,ct.md.df$Mode,sep = ".")
+
+## use cbmb.df
+cbmb.df$comb <- rownames(cbmb.df)
+cbmb.df2 <- left_join(ct.md.df, cbmb.df, by="comb")
+cbmb.df2 <- cbmb.df2[,1:4]
+cbmb.df2[is.na(cbmb.df2)] <- 0
+cbmb.df2$Proportion <- cbmb.df2$freq.cbmb/sum(cbmb.df2$freq.cbmb)
+colnames(cbmb.df2)[1:2] <- c("c.t.","Mode")
+
+color.reds <- c("white","#FC9272","#FB6A4A","#EF3B2C","#CB181D","#A50F15","#67000D")
+
+p.cor.cbmb <- ggplot(cbmb.df2, aes(x = Mode, y = c.t.)) + #geom_raster(aes(fill=Proportion)) + 
+  geom_tile(aes(fill = Proportion)) + geom_text(aes(label = cbmb.df2$freq.cbmb), size=7) + 
+  scale_fill_gradientn(colours = color.reds) + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16), axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1, size = 18),axis.text.y = element_text(angle = 30,size = 18))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "", x = "") 
+
+ggsave(filename="./output/Correlation.ct.md.B.pdf", plot=p.cor.cbmb, width=8, height=5, units="in")
+
+## use cgmg.df
+cgmg.df$comb <- rownames(cgmg.df)
+cgmg.df2 <- left_join(ct.md.df, cgmg.df, by="comb")
+cgmg.df2 <- cgmg.df2[,1:4]
+cgmg.df2[is.na(cgmg.df2)] <- 0
+cgmg.df2$Proportion <- cgmg.df2$freq.cgmg/sum(cgmg.df2$freq.cgmg)
+colnames(cgmg.df2)[1:2] <- c("c.t.","Mode")
+
+p.cor.cgmg <- ggplot(cgmg.df2, aes(x = Mode, y = c.t.)) + #geom_raster(aes(fill=Proportion)) + 
+  geom_tile(aes(fill = Proportion)) + geom_text(aes(label = cgmg.df2$freq.cgmg), size=7) + 
+  scale_fill_gradientn(colours = color.reds) + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16), axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1, size = 18),axis.text.y = element_text(angle = 30,size = 18))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "", x = "") 
+
+ggsave(filename="./output/Correlation.ct.md.G.pdf", plot=p.cor.cgmg, width=8, height=5, units="in")
+
+## use clml.df
+clml.df$comb <- rownames(clml.df)
+clml.df2 <- left_join(ct.md.df, clml.df, by="comb")
+clml.df2 <- clml.df2[,1:4]
+clml.df2[is.na(clml.df2)] <- 0
+clml.df2$Proportion <- clml.df2$freq.clml/sum(clml.df2$freq.clml)
+colnames(clml.df2)[1:2] <- c("c.t.","Mode")
+
+p.cor.clml <- ggplot(clml.df2, aes(x = Mode, y = c.t.)) + #geom_raster(aes(fill=Proportion)) + 
+  geom_tile(aes(fill = Proportion)) + geom_text(aes(label = clml.df2$freq.clml), size=7) + 
+  scale_fill_gradientn(colours = color.reds) + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16), axis.text.x = element_text(angle = 30, hjust = 1, vjust = 1, size = 18),axis.text.y = element_text(angle = 30,size = 18))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "", x = "") 
+
+ggsave(filename="./output/Correlation.ct.md.L.pdf", plot=p.cor.clml, width=8, height=5, units="in")
+```
+# 16.Calculate the number for different subgroups: cis/trans classifications at Blastula stage
+```{r}
+id.compensatory <- cistrans.summary.df$ID[cistrans.summary.df$ct.b.Primary=="Compensatory"]
+length(id.compensatory) #1816
+id.allcis<- cistrans.summary.df$ID[cistrans.summary.df$ct.b.Primary=="all cis"]
+length(id.allcis) #1412
+id.alltrans<- cistrans.summary.df$ID[cistrans.summary.df$ct.b.Primary=="all trans"]
+length(id.alltrans) #639
+id.cisbytrans<- cistrans.summary.df$ID[cistrans.summary.df$ct.b.Primary=="cis x trans"]
+length(id.cisbytrans) #1002
+id.rest<- cistrans.summary.df$ID[!cistrans.summary.df$ct.b.Primary %in% c("Compensatory", "all cis", "all trans", "cis x trans")]
+
+id.compensatory.Ae.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="Compensatory") & (cistrans.summary.df$AtvsAe.l2fc.x < 0)]
+length(id.compensatory.Ae.High) #1786
+id.compensatory.At.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="Compensatory") & (cistrans.summary.df$AtvsAe.l2fc.x > 0)]
+length(id.compensatory.At.High) #30
+
+id.allcis.AeHe.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="all cis") & (cistrans.summary.df$AtvsAe.l2fc.x < 0)]
+length(id.allcis.AeHe.High) #1932
+id.allcis.AtHt.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="all cis") & (cistrans.summary.df$AtvsAe.l2fc.x > 0)]
+length(id.allcis.AtHt.High) #380
+
+id.alltrans.He.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="all trans") & (cistrans.summary.df$HtvsHe.l2fc.x < 0)]
+length(id.alltrans.He.High) #46
+id.alltrans.Ht.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="all trans") & (cistrans.summary.df$HtvsHe.l2fc.x > 0)]
+length(id.alltrans.Ht.High) #593
+
+id.cisbytrans.Ae.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="cis x trans") & (cistrans.summary.df$AtvsAe.l2fc.x < 0)]
+length(id.cisbytrans.Ae.High) #973
+id.cisbytrans.At.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="cis x trans") & (cistrans.summary.df$AtvsAe.l2fc.x > 0)]
+length(id.cisbytrans.At.High) #29
+
+id.cisbytrans.AeHe.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="cis x trans") & (cistrans.summary.df$AtvsAe.l2fc.x < 0) & (cistrans.summary.df$HtvsHe.l2fc.x < 0)]
+length(id.cisbytrans.AeHe.High)#648
+id.cisbytrans.AeHt.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="cis x trans") & (cistrans.summary.df$AtvsAe.l2fc.x < 0) & (cistrans.summary.df$HtvsHe.l2fc.x > 0)]
+length(id.cisbytrans.AeHt.High)#325
+
+id.cisbytrans.AtHe.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="cis x trans") & (cistrans.summary.df$AtvsAe.l2fc.x > 0) & (cistrans.summary.df$HtvsHe.l2fc.x < 0)]
+length(id.cisbytrans.AtHe.High) #11
+id.cisbytrans.AtHt.High <- cistrans.summary.df$ID[(cistrans.summary.df$ct.b.Primary=="cis x trans") & (cistrans.summary.df$AtvsAe.l2fc.x > 0) & (cistrans.summary.df$HtvsHe.l2fc.x > 0)]
+length(id.cisbytrans.AtHt.High) #18
+
+```
+# 17.Geneplots
+## Note: This step takes hours to finish. It generate one plot for each gene. 
+```{r warning=FALSE}
+######### Only run once to generate large amount of pdf files. 
+# grn.id <- rownames(all.info[all.info$GRN == "GRN",])
+# dir.create("./output/geneplots/grn/")
+# gene.dir.grn <- "./output/geneplots/grn/"
+# gene.plot.f(grn.id,gene.dir.grn)
+# 
+# # 1.
+# dir.create("./output/geneplots/01.compensatory.Ae.High/")
+# gene.dir.id.compensatory.Ae.High <- "./output/geneplots/01.compensatory.Ae.High/"
+# gene.plot.f(id.compensatory.Ae.High,gene.dir.id.compensatory.Ae.High)
+# # 2.
+# dir.create("./output/geneplots/02.compensatory.At.High/")
+# gene.dir.id.compensatory.At.High <- "./output/geneplots/02.compensatory.At.High/"
+# gene.plot.f(id.compensatory.At.High,gene.dir.id.compensatory.At.High)
+# # 3.
+# dir.create("./output/geneplots/03.allcis.AeHe.High/")
+# gene.dir.id.allcis.AeHe.High <- "./output/geneplots/03.allcis.AeHe.High/"
+# gene.plot.f(id.allcis.AeHe.High,gene.dir.id.allcis.AeHe.High)
+# # 4.
+# dir.create("./output/geneplots/04.allcis.AtHt.High/")
+# gene.dir.id.allcis.AtHt.High <- "./output/geneplots/04.allcis.AtHt.High/"
+# gene.plot.f(id.allcis.AtHt.High,gene.dir.id.allcis.AtHt.High)
+# # 5.
+# dir.create("./output/geneplots/05.alltrans.He.High/")
+# gene.dir.id.alltrans.He.High <- "./output/geneplots/05.alltrans.He.High/"
+# gene.plot.f(id.alltrans.He.High,gene.dir.id.alltrans.He.High)
+# # 6.
+# dir.create("./output/geneplots/06.alltrans.Ht.High/")
+# gene.dir.id.alltrans.Ht.High <- "./output/geneplots/06.alltrans.Ht.High/"
+# gene.plot.f(id.alltrans.Ht.High,gene.dir.id.alltrans.Ht.High)
+# # 7.
+# dir.create("./output/geneplots/07.cisbytrans.AeHe.High/")
+# gene.dir.id.cisbytrans.AeHe.High <- "./output/geneplots/07.cisbytrans.AeHe.High/"
+# gene.plot.f(id.cisbytrans.AeHe.High,gene.dir.id.cisbytrans.AeHe.High)
+# # 8.
+# dir.create("./output/geneplots/08.cisbytrans.AeHt.High/")
+# gene.dir.id.cisbytrans.AeHt.High <- "./output/geneplots/08.cisbytrans.AeHt.High/"
+# gene.plot.f(id.cisbytrans.AeHt.High,gene.dir.id.cisbytrans.AeHt.High)
+# # 9.
+# dir.create("./output/geneplots/09.cisbytrans.AtHe.High/")
+# gene.dir.id.cisbytrans.AtHe.High <- "./output/geneplots/09.cisbytrans.AtHe.High/"
+# gene.plot.f(id.cisbytrans.AtHe.High,gene.dir.id.cisbytrans.AtHe.High)
+# # 10.
+# dir.create("./output/geneplots/10.cisbytrans.AtHt.High/")
+# gene.dir.id.cisbytrans.AtHt.High <- "./output/geneplots/10.cisbytrans.AtHt.High/"
+# gene.plot.f(id.cisbytrans.AtHt.High,gene.dir.id.cisbytrans.AtHt.High)
+# # 11.
+# dir.create("./output/geneplots/11.rest/")
+# gene.dir.id.rest <- "./output/geneplots/11.rest/"
+# gene.plot.f(id.rest,gene.dir.id.rest)
+
+```
+# 18.QC: Both genomes are transcribed. Calculated number of genes change for certain categories.  
+```{r}
+atB1 <- data.frame("Reads"=log2(all.expr.spu$At1.B+1),"Sample"="H.t1")
+atB2 <- data.frame("Reads"=log2(all.expr.spu$At2.B+1),"Sample"="H.t2")
+atB3 <- data.frame("Reads"=log2(all.expr.spu$At3.B+1),"Sample"="H.t3")
+aeB1 <- data.frame("Reads"=log2(all.expr.spu$Ae1.B+1),"Sample"="H.e1")
+aeB2 <- data.frame("Reads"=log2(all.expr.spu$Ae2.B+1),"Sample"="H.e2")
+aeB3 <- data.frame("Reads"=log2(all.expr.spu$Ae3.B+1),"Sample"="H.e3")
+allele.b.long <- rbind(atB1,atB2,atB3,aeB1,aeB2,aeB3)
+
+p.allele.b <- ggplot(allele.b.long, aes(Reads, color = Sample)) + stat_density(position="identity",geom="line", show.legend = T, adjust = 0.5, size=1) + ggtitle("") + theme_classic() + theme(panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), legend.background = element_rect(fill = "transparent",colour = NA)) + theme(plot.title = element_text(size=24, vjust = 1.5, face = "bold"), axis.text = element_text(size=16), axis.title=element_text(size=18),legend.text = element_text(size=16), legend.title=element_text(size=16))  + theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent", colour = NA)) + theme(strip.text.x = element_text(size=15, face="italic")) +  theme(strip.background = element_rect(colour="black", fill="transparent",size=1.5, linetype="solid")) + labs(y = "Density", x = "Log2(Assigned Reads)") + geom_vline(xintercept=0.5, linetype = "dashed", alpha = 0.3)
+
+pdf(paste0("./output/AssignedReads.B.pdf"), width = 8, height = 4)
+par(mfrow=c(2,3))
+hist(log2(all.expr.spu$At1.B+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$At2.B+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$At3.B+1), breaks = 50, main = "", xlab = "", ylab = "")
+
+hist(log2(all.expr.spu$Ae1.B+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$Ae2.B+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$Ae3.B+1), breaks = 50, main = "", xlab = "", ylab = "")
+
+par(mfrow=c(1,1))
+dev.off()
+
+pdf(paste0("./output/AssignedReads.G.pdf"), width = 8, height = 4)
+par(mfrow=c(2,3))
+hist(log2(all.expr.spu$At1.G+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$At2.G+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$At3.G+1), breaks = 50, main = "", xlab = "", ylab = "")
+
+hist(log2(all.expr.spu$Ae1.G+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$Ae2.G+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$Ae3.G+1), breaks = 50, main = "", xlab = "", ylab = "")
+par(mfrow=c(1,1))
+dev.off()
+
+pdf(paste0("./output/AssignedReads.L.pdf"), width = 8, height = 4)
+par(mfrow=c(2,3))
+hist(log2(all.expr.spu$At1.L+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$At2.L+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$At3.L+1), breaks = 50, main = "", xlab = "", ylab = "")
+
+hist(log2(all.expr.spu$Ae1.L+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$Ae2.L+1), breaks = 50, main = "", xlab = "", ylab = "")
+hist(log2(all.expr.spu$Ae3.L+1), breaks = 50, main = "", xlab = "", ylab = "")
+par(mfrow=c(1,1))
+dev.off()
+
+pdf(paste0("./output/AssignedReads.test.pdf"), width = 8, height = 6)
+hist(log2(all.expr.spu$At1.L+1), breaks = 50, main = "", xlab = "Log2(Assigned reads + 1)", ylab = "Number of Genes")
+dev.off()
+
+dim(category.ct) # 4077 genes
+
+sum(!category.ct$ct.all%in%ct.same3) # 2629 genes change categories.
+
+sum(category.ct$ct.all%in%ct.same3) # 1448 genes don't change categories.Including:
+sum(category.ct$ct.all == "all cis.all cis.all cis" ) # 107
+sum(category.ct$ct.all == "all trans.all trans.all trans") # 0
+sum(category.ct$ct.all == "cis x trans.cis x trans.cis x trans") # 0
+sum(category.ct$ct.all == "cis + trans.cis + trans.cis + trans") # 0
+sum(category.ct$ct.all == "Compensatory.Compensatory.Compensatory") # 1
+sum(category.ct$ct.all == "Conserved.Conserved.Conserved") # 1340
+2629/(4077-1340) # 96.1%
+
+
+ct.same3.gl <- c("all cis.all cis","all trans.all trans","cis x trans.cis x trans","cis + trans.cis + trans","Compensatory.Compensatory","Conserved.Conserved")
+
+sum(!category.ct$ct.gl%in%ct.same3.gl) # 776 genes change categories.
+
+sum(category.ct$ct.gl%in%ct.same3.gl) # 3301 genes don't change categories.Including:
+sum(category.ct$ct.gl == "all cis.all cis" ) # 248
+sum(category.ct$ct.gl == "all trans.all trans") # 10
+sum(category.ct$ct.gl == "cis x trans.cis x trans") # 0
+sum(category.ct$ct.gl == "cis + trans.cis + trans") # 1
+sum(category.ct$ct.gl == "Compensatory.Compensatory") # 5
+sum(category.ct$ct.gl == "Conserved.Conserved") # 3037
+776/(4077-3037) # 74.6%
+
+ct.id.change <- rownames(category.ct[!category.ct$ct.all%in%ct.same3,])
+
+```
+
+```{r}
+sessionInfo()
+```
+
