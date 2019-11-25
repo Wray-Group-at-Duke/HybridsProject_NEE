@@ -1,6 +1,6 @@
 In the RawData folder, target1.csv contains a table of sample information. 
 
-The annotation of sea urchin genes were downloaded from http://www.echinobase.org:3838/quantdev/
+The annotation of sea urchin genes (sp.anno.csv) were downloaded from http://www.echinobase.org:3838/quantdev/
 
 GRNgenes-redundant.csv contains the GRN genes annotated in sea urchins. 
 
