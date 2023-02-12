@@ -1,5 +1,5 @@
-# HybridsProject
-This is a study on genetic basis for extensive divergence in developmental gene expression during life history evolution in sea urchin Heliocidaris.
+# Analysis of developmental transcriptomes in hybrids of Heliocidaris
+This is a study on genetic basis for extensive divergence in developmental gene expression during life history evolution within the sea urchin Heliocidaris. The results of these analyses are published in Wang et al. (2021) Nature Ecology & Evolution https://doi.org/10.1038/s41559-020-1165-y.
 
 To reproduce the results:
 1. Download the Rmd file. Download the RawData folder and all the data files in the folder.
